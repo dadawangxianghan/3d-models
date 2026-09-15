@@ -64,11 +64,12 @@ const scene =
 
 /* ========================================
    CAMERA
+   FOV = 45
 ======================================== */
 
 const camera =
   new THREE.PerspectiveCamera(
-    70,
+    45,
     window.innerWidth / window.innerHeight,
     0.001,
     10000
@@ -109,7 +110,7 @@ renderer.toneMapping =
 
 
 /*
-  Keep blacks deep.
+  Keep deep blacks
 */
 
 renderer.toneMappingExposure =
@@ -123,6 +124,7 @@ document.body.appendChild(
 
 /* ========================================
    SPACE ENVIRONMENT
+   space_2.jpg
 ======================================== */
 
 const textureLoader =
@@ -149,23 +151,14 @@ textureLoader.load(
       texture;
 
 
-    /*
-      PBR environment reflection
-
-      This is now the MAIN source
-      of highlights and reflections.
-    */
+    /* PBR environment */
 
     scene.environment =
       texture;
 
 
     /*
-      Environment strength
-
-      Strong enough to reveal
-      the rings and spheres,
-      but without hard light spots.
+      Environment reflection strength
     */
 
     scene.environmentIntensity =
@@ -173,8 +166,7 @@ textureLoader.load(
 
 
     /*
-      Keep background and reflections
-      aligned.
+      Environment rotation
     */
 
     scene.backgroundRotation.y =
@@ -238,7 +230,7 @@ controls.rotateSpeed =
   0.7;
 
 
-/* Wheel scroll = zoom */
+/* Mouse wheel scroll = zoom */
 
 controls.enableZoom =
   true;
@@ -273,8 +265,9 @@ controls.mouseButtons.LEFT =
 
 
 /*
-  PRESS WHEEL + DRAG
-  = MOVE / PAN
+  PRESS MIDDLE MOUSE / WHEEL
+  + DRAG
+  = PAN
 */
 
 controls.mouseButtons.MIDDLE =
@@ -283,14 +276,14 @@ controls.mouseButtons.MIDDLE =
 
 /*
   RIGHT DRAG
-  = MOVE / PAN
+  = PAN
 */
 
 controls.mouseButtons.RIGHT =
   THREE.MOUSE.PAN;
 
 
-/* Full horizontal rotation */
+/* Horizontal rotation */
 
 controls.minAzimuthAngle =
   -Infinity;
@@ -311,25 +304,24 @@ controls.maxPolarAngle =
 
 
 /* ========================================
-   SOFT LIGHTING
+   WARM SOFT LIGHTING
 ======================================== */
 
 
 /*
-  No DirectionalLights.
+  Very subtle warm ambient fill
 
-  The environment map handles
-  the reflections.
-
-  This ambient light only gives
-  the darkest areas a subtle
-  cool-blue lift.
+  No hard directional lights,
+  so we avoid obvious light dots.
 */
 
 const ambientLight =
   new THREE.AmbientLight(
-    0x6f86b8,
+
+    0xffc77a,
+
     0.16
+
   );
 
 
@@ -339,19 +331,24 @@ scene.add(
 
 
 /*
-  Very soft cool sky fill.
+  Soft warm hemisphere light
 
-  This is deliberately weak.
-  It does NOT create a visible
-  spotlight reflection.
+  Top:
+  warm golden / cream
+
+  Bottom:
+  very dark warm brown
+
+  This creates a softer
+  gold / bronze feeling.
 */
 
 const hemiLight =
   new THREE.HemisphereLight(
 
-    0x789aff,
+    0xffc36b,
 
-    0x080711,
+    0x120906,
 
     0.28
 
@@ -364,7 +361,7 @@ scene.add(
 
 
 /* ========================================
-   MODEL
+   LOAD MODEL
 ======================================== */
 
 const loader =
@@ -392,7 +389,7 @@ loader.load(
 
 
     /* ====================================
-       MATERIAL
+       MATERIAL SETTINGS
     ==================================== */
 
     model.traverse(
@@ -417,8 +414,8 @@ loader.load(
 
 
               /*
-                Needed because camera
-                is inside the structure.
+                Camera is inside,
+                so render both sides.
               */
 
               material.side =
@@ -427,8 +424,6 @@ loader.load(
 
               /*
                 Environment reflections
-                are the main lighting
-                character.
               */
 
               if (
@@ -480,7 +475,12 @@ loader.load(
 
 
     /* ====================================
-       NEW CAMERA POSITION
+       CURRENT CAMERA POSITION
+
+       Keep your latest position for now.
+       Because FOV changed to 45,
+       you will probably want to
+       reposition this again.
     ==================================== */
 
     camera.position.set(
@@ -505,12 +505,17 @@ loader.load(
     );
 
 
+    /*
+      FOV = 45
+      Matching your Sketchfab setting.
+    */
+
     camera.fov =
-      70;
+      45;
 
 
     /* ====================================
-       CLIPPING
+       CAMERA CLIPPING
     ==================================== */
 
     camera.near =
@@ -557,7 +562,8 @@ loader.load(
 
 
       /*
-        KEEP AT 0.1x
+        IMPORTANT:
+        KEEP ANIMATION AT 0.1x
       */
 
       action.timeScale =
@@ -574,7 +580,7 @@ loader.load(
 
 
     console.log(
-      'Model loaded'
+      'Model loaded successfully'
     );
 
   },
@@ -613,7 +619,7 @@ loader.load(
 
 
 /* ========================================
-   CAMERA INFO
+   CAMERA DEBUG
    PRESS P
 ======================================== */
 
@@ -764,7 +770,7 @@ animate();
 
 
 /* ========================================
-   RESIZE
+   RESPONSIVE
 ======================================== */
 
 window.addEventListener(
