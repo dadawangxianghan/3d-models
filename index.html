@@ -40,6 +40,7 @@
 
 </head>
 
+
 <body>
 
 <script type="module">
@@ -57,52 +58,62 @@ import { OrbitControls } from
    SCENE
 ======================================== */
 
-const scene = new THREE.Scene();
+const scene =
+  new THREE.Scene();
 
 
 /* ========================================
    CAMERA
 ======================================== */
 
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.001,
-  10000
-);
+const camera =
+  new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth / window.innerHeight,
+    0.001,
+    10000
+  );
 
 
 /* ========================================
    RENDERER
 ======================================== */
 
-const renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  alpha: false
-});
+const renderer =
+  new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false
+  });
+
 
 renderer.setPixelRatio(
-  Math.min(window.devicePixelRatio, 2)
+  Math.min(
+    window.devicePixelRatio,
+    2
+  )
 );
+
 
 renderer.setSize(
   window.innerWidth,
   window.innerHeight
 );
 
+
 renderer.outputColorSpace =
   THREE.SRGBColorSpace;
+
 
 renderer.toneMapping =
   THREE.ACESFilmicToneMapping;
 
 
 /*
-  Slightly darker than before
-  to keep the black-space feeling.
+  Keep blacks deep.
 */
 
-renderer.toneMappingExposure = 1.25;
+renderer.toneMappingExposure =
+  1.1;
 
 
 document.body.appendChild(
@@ -112,7 +123,6 @@ document.body.appendChild(
 
 /* ========================================
    SPACE ENVIRONMENT
-   space_2.jpg
 ======================================== */
 
 const textureLoader =
@@ -128,6 +138,7 @@ textureLoader.load(
     texture.mapping =
       THREE.EquirectangularReflectionMapping;
 
+
     texture.colorSpace =
       THREE.SRGBColorSpace;
 
@@ -138,22 +149,33 @@ textureLoader.load(
       texture;
 
 
-    /* Reflections */
+    /*
+      PBR environment reflection
+
+      This is now the MAIN source
+      of highlights and reflections.
+    */
 
     scene.environment =
       texture;
 
 
     /*
-      Lower than before.
+      Environment strength
 
-      This reduces the reddish/orange
-      contribution coming from the JPG.
+      Strong enough to reveal
+      the rings and spheres,
+      but without hard light spots.
     */
 
     scene.environmentIntensity =
-      0.75;
+      1.25;
 
+
+    /*
+      Keep background and reflections
+      aligned.
+    */
 
     scene.backgroundRotation.y =
       THREE.MathUtils.degToRad(0);
@@ -164,12 +186,14 @@ textureLoader.load(
 
 
     console.log(
-      'space_2.jpg loaded'
+      'space_2 environment loaded'
     );
 
   },
 
+
   undefined,
+
 
   function(error) {
 
@@ -194,10 +218,11 @@ const controls =
   );
 
 
-/* Smooth movement */
+/* Smooth */
 
 controls.enableDamping =
   true;
+
 
 controls.dampingFactor =
   0.05;
@@ -208,6 +233,7 @@ controls.dampingFactor =
 controls.enableRotate =
   true;
 
+
 controls.rotateSpeed =
   0.7;
 
@@ -216,6 +242,7 @@ controls.rotateSpeed =
 
 controls.enableZoom =
   true;
+
 
 controls.zoomSpeed =
   0.5;
@@ -226,12 +253,13 @@ controls.zoomSpeed =
 controls.enablePan =
   true;
 
+
 controls.panSpeed =
   0.8;
 
 
 /* ========================================
-   MOUSE BUTTON MAPPING
+   MOUSE CONTROLS
 ======================================== */
 
 
@@ -245,12 +273,8 @@ controls.mouseButtons.LEFT =
 
 
 /*
-  PRESS MIDDLE MOUSE / WHEEL
-  + DRAG
-  = PAN
-
-  This lets you move the whole
-  composition up/down/left/right.
+  PRESS WHEEL + DRAG
+  = MOVE / PAN
 */
 
 controls.mouseButtons.MIDDLE =
@@ -259,7 +283,7 @@ controls.mouseButtons.MIDDLE =
 
 /*
   RIGHT DRAG
-  = PAN too
+  = MOVE / PAN
 */
 
 controls.mouseButtons.RIGHT =
@@ -271,6 +295,7 @@ controls.mouseButtons.RIGHT =
 controls.minAzimuthAngle =
   -Infinity;
 
+
 controls.maxAzimuthAngle =
   Infinity;
 
@@ -280,27 +305,33 @@ controls.maxAzimuthAngle =
 controls.minPolarAngle =
   0.15;
 
+
 controls.maxPolarAngle =
   Math.PI - 0.15;
 
 
 /* ========================================
-   LIGHTING
+   SOFT LIGHTING
 ======================================== */
 
 
 /*
-  Very subtle cool ambient light.
+  No DirectionalLights.
 
-  The previous white ambient was 1.5.
-  This one is much weaker and slightly blue.
+  The environment map handles
+  the reflections.
+
+  This ambient light only gives
+  the darkest areas a subtle
+  cool-blue lift.
 */
 
 const ambientLight =
   new THREE.AmbientLight(
-    0x8faeff,
-    0.22
+    0x6f86b8,
+    0.16
   );
+
 
 scene.add(
   ambientLight
@@ -308,56 +339,32 @@ scene.add(
 
 
 /*
-  BLUE KEY LIGHT
+  Very soft cool sky fill.
 
-  Main blue highlight.
-  Positioned upper-left/front.
+  This is deliberately weak.
+  It does NOT create a visible
+  spotlight reflection.
 */
 
-const blueKeyLight =
-  new THREE.DirectionalLight(
-    0x5f8fff,
-    3.2
+const hemiLight =
+  new THREE.HemisphereLight(
+
+    0x789aff,
+
+    0x080711,
+
+    0.28
+
   );
 
-blueKeyLight.position.set(
-  -8,
-  6,
-  8
-);
 
 scene.add(
-  blueKeyLight
-);
-
-
-/*
-  DEEP BLUE RIM LIGHT
-
-  Comes from the opposite side,
-  creating blue edges around
-  spheres and rings.
-*/
-
-const blueRimLight =
-  new THREE.DirectionalLight(
-    0x244dff,
-    2.4
-  );
-
-blueRimLight.position.set(
-  8,
-  -4,
-  -6
-);
-
-scene.add(
-  blueRimLight
+  hemiLight
 );
 
 
 /* ========================================
-   LOAD MODEL
+   MODEL
 ======================================== */
 
 const loader =
@@ -385,7 +392,7 @@ loader.load(
 
 
     /* ====================================
-       MATERIAL SETTINGS
+       MATERIAL
     ==================================== */
 
     model.traverse(
@@ -399,7 +406,9 @@ loader.load(
             Array.isArray(
               child.material
             )
+
               ? child.material
+
               : [child.material];
 
 
@@ -408,7 +417,8 @@ loader.load(
 
 
               /*
-                Render inside + outside
+                Needed because camera
+                is inside the structure.
               */
 
               material.side =
@@ -416,9 +426,9 @@ loader.load(
 
 
               /*
-                Reduce environment reflection
-                so space_2 doesn't overpower
-                the blue lights.
+                Environment reflections
+                are the main lighting
+                character.
               */
 
               if (
@@ -427,7 +437,7 @@ loader.load(
               ) {
 
                 material.envMapIntensity =
-                  0.85;
+                  1.2;
 
               }
 
@@ -470,30 +480,27 @@ loader.load(
 
 
     /* ====================================
-       CURRENT CAMERA START POSITION
-
-       Keep this for now.
-       You can adjust it again.
+       NEW CAMERA POSITION
     ==================================== */
 
     camera.position.set(
 
-      -10.270741824643428,
+      9.086131739355125,
 
-      -3.5428384421134655,
+      5.890803518806088,
 
-      18.772016980965745
+      18.948786602224622
 
     );
 
 
     controls.target.set(
 
-      -11.328824611395275,
+      -18.90314037413767,
 
-      -8.301359579118229,
+      -14.336285664474662,
 
-      -39.080314964653574
+      -5.384827484565529
 
     );
 
@@ -503,7 +510,7 @@ loader.load(
 
 
     /* ====================================
-       CAMERA CLIPPING
+       CLIPPING
     ==================================== */
 
     camera.near =
@@ -550,7 +557,7 @@ loader.load(
 
 
       /*
-        KEEP ANIMATION AT 0.1x
+        KEEP AT 0.1x
       */
 
       action.timeScale =
@@ -567,7 +574,7 @@ loader.load(
 
 
     console.log(
-      'Model loaded successfully'
+      'Model loaded'
     );
 
   },
@@ -606,7 +613,7 @@ loader.load(
 
 
 /* ========================================
-   CAMERA DEBUG
+   CAMERA INFO
    PRESS P
 ======================================== */
 
@@ -757,7 +764,7 @@ animate();
 
 
 /* ========================================
-   RESPONSIVE
+   RESIZE
 ======================================== */
 
 window.addEventListener(
