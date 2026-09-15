@@ -121,11 +121,6 @@ textureLoader.load(
 
   function(texture) {
 
-    /*
-      Tell Three.js this is a
-      360° equirectangular image
-    */
-
     texture.mapping =
       THREE.EquirectangularReflectionMapping;
 
@@ -133,30 +128,22 @@ textureLoader.load(
       THREE.SRGBColorSpace;
 
 
-    /*
-      Visible galaxy background
-    */
+    /* Visible galaxy background */
 
     scene.background = texture;
 
 
-    /*
-      Reflections on PBR materials
-    */
+    /* Galaxy reflections */
 
     scene.environment = texture;
 
 
-    /*
-      Environment intensity
-    */
+    /* Environment brightness */
 
     scene.environmentIntensity = 1.5;
 
 
-    /*
-      Rotate galaxy if desired
-    */
+    /* Galaxy rotation */
 
     scene.backgroundRotation.y =
       THREE.MathUtils.degToRad(0);
@@ -189,29 +176,68 @@ const controls = new OrbitControls(
   renderer.domElement
 );
 
+
+/*
+  Smooth movement
+*/
+
 controls.enableDamping = true;
 
 controls.dampingFactor = 0.05;
 
+
+/*
+  LEFT MOUSE:
+  rotate / look around
+*/
+
+controls.enableRotate = true;
+
+controls.rotateSpeed = 0.7;
+
+
+/*
+  MOUSE WHEEL:
+  zoom in / out
+*/
+
 controls.enableZoom = true;
 
-controls.enablePan = false;
+controls.zoomSpeed = 0.5;
 
-controls.rotateSpeed = 0.5;
 
-controls.zoomSpeed = 0.7;
+/*
+  RIGHT MOUSE:
+  move view up/down/left/right
+*/
+
+controls.enablePan = true;
+
+controls.panSpeed = 0.8;
+
+
+/*
+  Full horizontal rotation
+*/
+
+controls.minAzimuthAngle = -Infinity;
+
+controls.maxAzimuthAngle = Infinity;
+
+
+/*
+  Vertical rotation range
+*/
+
+controls.minPolarAngle = 0.15;
+
+controls.maxPolarAngle =
+  Math.PI - 0.15;
 
 
 /* ========================================
    LIGHTING
 ======================================== */
-
-/*
-  Keep some soft fill lighting.
-
-  The galaxy environment will now
-  provide most of the reflections.
-*/
 
 const ambientLight =
   new THREE.AmbientLight(
@@ -256,7 +282,7 @@ loader.load(
 
 
     /* ====================================
-       MATERIALS
+       MATERIAL SETTINGS
     ==================================== */
 
     model.traverse(function(child) {
@@ -273,8 +299,8 @@ loader.load(
           function(material) {
 
             /*
-              Important:
-              render surfaces from inside
+              Render surfaces
+              from both sides
             */
 
             material.side =
@@ -282,8 +308,8 @@ loader.load(
 
 
             /*
-              Increase environment
-              reflections
+              Galaxy reflection
+              strength
             */
 
             if (
@@ -337,7 +363,8 @@ loader.load(
 
 
     /* ====================================
-       CAMERA STARTS INSIDE
+       DEFAULT CAMERA POSITION
+       START INSIDE
     ==================================== */
 
     camera.position.set(
@@ -350,6 +377,10 @@ loader.load(
 
     );
 
+
+    /*
+      Camera look target
+    */
 
     controls.target.set(
 
@@ -375,35 +406,9 @@ loader.load(
 
     camera.updateProjectionMatrix();
 
+
     controls.update();
-/* Camera debug: press P to print current view */
 
-window.addEventListener('keydown', function(event) {
-
-  if (event.key.toLowerCase() === 'p') {
-
-    console.log(
-      'CAMERA POSITION:',
-      camera.position.x,
-      camera.position.y,
-      camera.position.z
-    );
-
-    console.log(
-      'CAMERA TARGET:',
-      controls.target.x,
-      controls.target.y,
-      controls.target.z
-    );
-
-    console.log(
-      'CAMERA FOV:',
-      camera.fov
-    );
-
-  }
-
-});
 
     /* ====================================
        BLENDER ANIMATION
@@ -423,6 +428,10 @@ window.addEventListener('keydown', function(event) {
         );
 
 
+      /*
+        Infinite loop
+      */
+
       action.setLoop(
         THREE.LoopRepeat,
         Infinity
@@ -430,8 +439,10 @@ window.addEventListener('keydown', function(event) {
 
 
       /*
-        IMPORTANT:
-        Animation playback = 0.1x
+        IMPORTANT
+
+        Animation playback speed:
+        0.1x
       */
 
       action.timeScale = 0.1;
@@ -448,6 +459,18 @@ window.addEventListener('keydown', function(event) {
 
     console.log(
       'Model loaded successfully'
+    );
+
+
+    console.log(
+      'Model center:',
+      center
+    );
+
+
+    console.log(
+      'Model size:',
+      size
     );
 
   },
@@ -488,6 +511,54 @@ window.addEventListener('keydown', function(event) {
 
 
 /* ========================================
+   CAMERA DEBUG
+
+   Adjust your view,
+   then press P.
+
+   Open Chrome:
+   Inspect → Console
+
+   Copy the values to ChatGPT.
+======================================== */
+
+window.addEventListener(
+  'keydown',
+  function(event) {
+
+    if (
+      event.key.toLowerCase()
+      === 'p'
+    ) {
+
+      console.log(
+        'CAMERA POSITION:',
+        camera.position.x,
+        camera.position.y,
+        camera.position.z
+      );
+
+
+      console.log(
+        'CAMERA TARGET:',
+        controls.target.x,
+        controls.target.y,
+        controls.target.z
+      );
+
+
+      console.log(
+        'CAMERA FOV:',
+        camera.fov
+      );
+
+    }
+
+  }
+);
+
+
+/* ========================================
    ANIMATION
 ======================================== */
 
@@ -506,6 +577,10 @@ function animate() {
     clock.getDelta();
 
 
+  /*
+    Update Blender animation
+  */
+
   if (mixer) {
 
     mixer.update(delta);
@@ -513,8 +588,16 @@ function animate() {
   }
 
 
+  /*
+    Update camera controls
+  */
+
   controls.update();
 
+
+  /*
+    Render
+  */
 
   renderer.render(
     scene,
