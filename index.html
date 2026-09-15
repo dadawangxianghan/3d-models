@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+
+  <title>3D Viewer</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+
+<body>
+
+<script type="module">
+
+import * as THREE from 'three';
+
+import { GLTFLoader } from
+  'three/addons/loaders/GLTFLoader.js';
+
+import { OrbitControls } from
+  'three/addons/controls/OrbitControls.js';
+
+
+/* ---------------------------
+   SCENE
+--------------------------- */
+
+const scene = new THREE.Scene();
+
+scene.background = new THREE.Color(0x000000);
+
+
+/* ---------------------------
+   CAMERA
+--------------------------- */
+
+const camera = new THREE.PerspectiveCamera(
+  55,
+  window.innerWidth / window.innerHeight,
+  0.001,
+  10000
+);
+
+
+/* ---------------------------
+   RENDERER
+--------------------------- */
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true
+});
+
+renderer.setPixelRatio(
+  Math.min(window.devicePixelRatio, 2)
+);
+
+renderer.setSize(
+  window.innerWidth,
+  window.innerHeight
+);
+
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+document.body.appendChild(renderer.domElement);
+
+
+/* ---------------------------
+   CONTROLS
+--------------------------- */
+
+const controls = new OrbitControls(
+  camera,
+  renderer.domElement
+);
+
+controls.enableDamping = true;
+controls.enableZoom = true;
+controls.enablePan = true;
+
+
+/* ---------------------------
+   BASIC LIGHT
+--------------------------- */
+
+const light = new THREE.HemisphereLight(
+  0xffffff,
+  0x444444,
+  2
+);
+
+scene.add(light);
+
+
+/* ---------------------------
+   LOAD YOUR GLB
+--------------------------- */
+
+const loader = new GLTFLoader();
+
+let mixer = null;
+
+loader.load(
+
+  './xuanzhuan.glb',
+
+  function(gltf) {
+
+    const model = gltf.scene;
+
+    scene.add(model);
+
+
+    /* Render surfaces from both sides */
+
+    model.traverse(function(child) {
+
+      if (child.isMesh) {
+
+        child.material.side = THREE.DoubleSide;
+
+        child.material.needsUpdate = true;
+
+      }
+
+    });
+
+
+    /* Find model dimensions */
+
+    const box =
+      new THREE.Box3().setFromObject(model);
+
+    const center =
+      box.getCenter(new THREE.Vector3());
+
+    const size =
+      box.getSize(new THREE.Vector3());
+
+    const maxDim =
+      Math.max(size.x, size.y, size.z);
+
+
+    /* Start outside so we can verify everything */
+
+    camera.position.set(
+      center.x,
+      center.y,
+      center.z + maxDim * 1.5
+    );
+
+    controls.target.copy(center);
+
+    controls.update();
+
+
+    /* PLAY BLENDER ANIMATION */
+
+    if (gltf.animations.length > 0) {
+
+      mixer =
+        new THREE.AnimationMixer(model);
+
+      const action =
+        mixer.clipAction(gltf.animations[0]);
+
+      action.setLoop(
+        THREE.LoopRepeat,
+        Infinity
+      );
+
+      action.play();
+
+    }
+
+  },
+
+  undefined,
+
+  function(error) {
+
+    console.error(
+      'GLB loading error:',
+      error
+    );
+
+  }
+
+);
+
+
+/* ---------------------------
+   ANIMATION LOOP
+--------------------------- */
+
+const clock = new THREE.Clock();
+
+function animate() {
+
+  requestAnimationFrame(animate);
+
+  const delta = clock.getDelta();
+
+  if (mixer) {
+    mixer.update(delta);
+  }
+
+  controls.update();
+
+  renderer.render(scene, camera);
+
+}
+
+animate();
+
+
+/* ---------------------------
+   RESIZE
+--------------------------- */
+
+window.addEventListener(
+  'resize',
+  function() {
+
+    camera.aspect =
+      window.innerWidth /
+      window.innerHeight;
+
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+
+  }
+);
+
+</script>
+
+</body>
+</html>
