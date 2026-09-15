@@ -106,7 +106,7 @@ document.body.appendChild(
 
 /* ========================================
    SPACE ENVIRONMENT
-   Current image: space_1.jpg
+   CURRENT: space_2.jpg
 ======================================== */
 
 const textureLoader =
@@ -115,7 +115,7 @@ const textureLoader =
 
 textureLoader.load(
 
-  './space_1.jpg',
+  './space_2.jpg',
 
   function(texture) {
 
@@ -128,39 +128,36 @@ textureLoader.load(
 
     /* Visible 360° background */
 
-    scene.background = texture;
+    scene.background =
+      texture;
 
 
-    /* Environment reflection */
+    /* Environment reflections */
 
-    scene.environment = texture;
-
-
-    /*
-      Environment lighting /
-      reflection intensity
-    */
-
-    scene.environmentIntensity = 1.5;
+    scene.environment =
+      texture;
 
 
-    /*
-      Rotate space environment
+    /* Environment intensity */
 
-      Change 0 to:
-      45 / 90 / 180 etc.
-      if you want to rotate it.
-    */
+    scene.environmentIntensity =
+      1.5;
+
+
+    /* Background rotation */
 
     scene.backgroundRotation.y =
       THREE.MathUtils.degToRad(0);
+
+
+    /* Reflection rotation */
 
     scene.environmentRotation.y =
       THREE.MathUtils.degToRad(0);
 
 
     console.log(
-      'space_1.jpg loaded successfully'
+      'space_2.jpg loaded successfully'
     );
 
   },
@@ -183,42 +180,64 @@ textureLoader.load(
    CONTROLS
 ======================================== */
 
-const controls = new OrbitControls(
-  camera,
-  renderer.domElement
-);
-
-
-/* Smooth movement */
-
-controls.enableDamping = true;
-
-controls.dampingFactor = 0.05;
-
-
-/* Left mouse = rotate */
-
-controls.enableRotate = true;
-
-controls.rotateSpeed = 0.7;
-
-
-/* Mouse wheel = zoom */
-
-controls.enableZoom = true;
-
-controls.zoomSpeed = 0.5;
+const controls =
+  new OrbitControls(
+    camera,
+    renderer.domElement
+  );
 
 
 /*
-  Final website:
-  disable right-click pan
+  Smooth movement
 */
 
-controls.enablePan = false;
+controls.enableDamping =
+  true;
+
+controls.dampingFactor =
+  0.05;
 
 
-/* Full horizontal rotation */
+/*
+  LEFT MOUSE:
+  Rotate
+*/
+
+controls.enableRotate =
+  true;
+
+controls.rotateSpeed =
+  0.7;
+
+
+/*
+  MOUSE WHEEL:
+  Zoom
+*/
+
+controls.enableZoom =
+  true;
+
+controls.zoomSpeed =
+  0.5;
+
+
+/*
+  RIGHT MOUSE:
+  Pan / move composition
+  up, down, left, right
+*/
+
+controls.enablePan =
+  true;
+
+controls.panSpeed =
+  0.8;
+
+
+/*
+  Full horizontal rotation
+*/
 
 controls.minAzimuthAngle =
   -Infinity;
@@ -227,9 +246,12 @@ controls.maxAzimuthAngle =
   Infinity;
 
 
-/* Vertical rotation */
+/*
+  Vertical rotation range
+*/
 
-controls.minPolarAngle = 0.15;
+controls.minPolarAngle =
+  0.15;
 
 controls.maxPolarAngle =
   Math.PI - 0.15;
@@ -270,7 +292,8 @@ const loader =
   new GLTFLoader();
 
 
-let mixer = null;
+let mixer =
+  null;
 
 
 loader.load(
@@ -278,7 +301,9 @@ loader.load(
   './xuanzhuan.glb',
 
 
-  /* MODEL LOADED */
+  /* ======================================
+     MODEL LOADED
+  ====================================== */
 
   function(gltf) {
 
@@ -374,7 +399,13 @@ loader.load(
 
 
     /* ====================================
-       FINAL OPENING CAMERA
+       CURRENT STARTING CAMERA
+
+       This is your previous position.
+       You can now adjust it again using:
+       Left mouse = rotate
+       Right mouse = pan
+       Wheel = zoom
     ==================================== */
 
     camera.position.set(
@@ -399,10 +430,13 @@ loader.load(
     );
 
 
-    camera.fov = 70;
+    camera.fov =
+      70;
 
 
-    /* Camera clipping */
+    /* ====================================
+       CAMERA CLIPPING
+    ==================================== */
 
     camera.near =
       Math.max(
@@ -442,7 +476,7 @@ loader.load(
 
 
       /*
-        Loop forever
+        Infinite loop
       */
 
       action.setLoop(
@@ -453,10 +487,11 @@ loader.load(
 
       /*
         IMPORTANT:
-        Animation speed = 0.1x
+        Animation playback speed = 0.1x
       */
 
-      action.timeScale = 0.1;
+      action.timeScale =
+        0.1;
 
 
       action.clampWhenFinished =
@@ -475,7 +510,9 @@ loader.load(
   },
 
 
-  /* LOAD PROGRESS */
+  /* ======================================
+     LOAD PROGRESS
+  ====================================== */
 
   function(xhr) {
 
@@ -497,7 +534,9 @@ loader.load(
   },
 
 
-  /* LOAD ERROR */
+  /* ======================================
+     LOAD ERROR
+  ====================================== */
 
   function(error) {
 
@@ -514,7 +553,12 @@ loader.load(
 /* ========================================
    CAMERA DEBUG
 
-   Press P to show camera information.
+   Adjust the composition.
+
+   Then press P.
+
+   Camera information will appear
+   in the top-left corner.
 ======================================== */
 
 const cameraInfo =
@@ -567,6 +611,10 @@ document.body.appendChild(
   cameraInfo
 );
 
+
+/* ========================================
+   PRESS P
+======================================== */
 
 window.addEventListener(
   'keydown',
@@ -639,7 +687,7 @@ function animate() {
 
 
   /*
-    Update model animation
+    Update Blender animation
   */
 
   if (
@@ -654,7 +702,7 @@ function animate() {
 
 
   /*
-    Update controls
+    Update OrbitControls
   */
 
   controls.update();
