@@ -376,7 +376,34 @@ loader.load(
     camera.updateProjectionMatrix();
 
     controls.update();
+/* Camera debug: press P to print current view */
 
+window.addEventListener('keydown', function(event) {
+
+  if (event.key.toLowerCase() === 'p') {
+
+    console.log(
+      'CAMERA POSITION:',
+      camera.position.x,
+      camera.position.y,
+      camera.position.z
+    );
+
+    console.log(
+      'CAMERA TARGET:',
+      controls.target.x,
+      controls.target.y,
+      controls.target.z
+    );
+
+    console.log(
+      'CAMERA FOV:',
+      camera.fov
+    );
+
+  }
+
+});
 
     /* ====================================
        BLENDER ANIMATION
