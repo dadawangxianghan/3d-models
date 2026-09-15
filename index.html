@@ -64,8 +64,6 @@ import { OrbitControls } from
 
 const scene = new THREE.Scene();
 
-scene.background = new THREE.Color(0x000000);
-
 
 /* ========================================
    CAMERA
@@ -100,17 +98,85 @@ renderer.setSize(
 renderer.outputColorSpace =
   THREE.SRGBColorSpace;
 
-
-/* Tone mapping */
-
 renderer.toneMapping =
   THREE.ACESFilmicToneMapping;
 
-renderer.toneMappingExposure = 2.0;
-
+renderer.toneMappingExposure = 1.5;
 
 document.body.appendChild(
   renderer.domElement
+);
+
+
+/* ========================================
+   GALAXY ENVIRONMENT
+======================================== */
+
+const textureLoader =
+  new THREE.TextureLoader();
+
+textureLoader.load(
+
+  './material_0_baseColor.png',
+
+  function(texture) {
+
+    /*
+      Tell Three.js this is a
+      360° equirectangular image
+    */
+
+    texture.mapping =
+      THREE.EquirectangularReflectionMapping;
+
+    texture.colorSpace =
+      THREE.SRGBColorSpace;
+
+
+    /*
+      Visible galaxy background
+    */
+
+    scene.background = texture;
+
+
+    /*
+      Reflections on PBR materials
+    */
+
+    scene.environment = texture;
+
+
+    /*
+      Environment intensity
+    */
+
+    scene.environmentIntensity = 1.5;
+
+
+    /*
+      Rotate galaxy if desired
+    */
+
+    scene.backgroundRotation.y =
+      THREE.MathUtils.degToRad(0);
+
+    scene.environmentRotation.y =
+      THREE.MathUtils.degToRad(0);
+
+  },
+
+  undefined,
+
+  function(error) {
+
+    console.error(
+      'Galaxy texture loading error:',
+      error
+    );
+
+  }
+
 );
 
 
@@ -140,25 +206,27 @@ controls.zoomSpeed = 0.7;
    LIGHTING
 ======================================== */
 
+/*
+  Keep some soft fill lighting.
 
-/* General fill light */
+  The galaxy environment will now
+  provide most of the reflections.
+*/
 
 const ambientLight =
   new THREE.AmbientLight(
     0xffffff,
-    3
+    1.5
   );
 
 scene.add(ambientLight);
 
 
-/* Soft environment-style light */
-
 const hemiLight =
   new THREE.HemisphereLight(
     0xffffff,
-    0x666666,
-    4
+    0x222233,
+    2
   );
 
 scene.add(hemiLight);
@@ -187,38 +255,53 @@ loader.load(
     scene.add(model);
 
 
-    /* ------------------------------------
-       DOUBLE SIDED MATERIALS
-       Allows camera to see inside spheres
-    ------------------------------------ */
+    /* ====================================
+       MATERIALS
+    ==================================== */
 
     model.traverse(function(child) {
 
       if (child.isMesh) {
 
-        if (Array.isArray(child.material)) {
+        const materials =
+          Array.isArray(child.material)
+            ? child.material
+            : [child.material];
 
-          child.material.forEach(
-            function(material) {
 
-              material.side =
-                THREE.DoubleSide;
+        materials.forEach(
+          function(material) {
 
-              material.needsUpdate =
-                true;
+            /*
+              Important:
+              render surfaces from inside
+            */
+
+            material.side =
+              THREE.DoubleSide;
+
+
+            /*
+              Increase environment
+              reflections
+            */
+
+            if (
+              'envMapIntensity'
+              in material
+            ) {
+
+              material.envMapIntensity =
+                1.5;
 
             }
-          );
 
-        } else {
 
-          child.material.side =
-            THREE.DoubleSide;
+            material.needsUpdate =
+              true;
 
-          child.material.needsUpdate =
-            true;
-
-        }
+          }
+        );
 
       }
 
@@ -226,21 +309,24 @@ loader.load(
 
 
     /* ====================================
-       CALCULATE MODEL SIZE
+       MODEL DIMENSIONS
     ==================================== */
 
     const box =
       new THREE.Box3().setFromObject(model);
+
 
     const center =
       box.getCenter(
         new THREE.Vector3()
       );
 
+
     const size =
       box.getSize(
         new THREE.Vector3()
       );
+
 
     const maxDim =
       Math.max(
@@ -251,7 +337,7 @@ loader.load(
 
 
     /* ====================================
-       CAMERA — START INSIDE
+       CAMERA STARTS INSIDE
     ==================================== */
 
     camera.position.set(
@@ -264,10 +350,6 @@ loader.load(
 
     );
 
-
-    /*
-      Look toward the interior
-    */
 
     controls.target.set(
 
@@ -286,18 +368,18 @@ loader.load(
         0.0001
       );
 
+
     camera.far =
       maxDim * 100;
 
 
     camera.updateProjectionMatrix();
 
-
     controls.update();
 
 
     /* ====================================
-       PLAY BLENDER ANIMATION
+       BLENDER ANIMATION
     ==================================== */
 
     if (gltf.animations.length > 0) {
@@ -320,6 +402,14 @@ loader.load(
       );
 
 
+      /*
+        IMPORTANT:
+        Animation playback = 0.1x
+      */
+
+      action.timeScale = 0.1;
+
+
       action.clampWhenFinished =
         false;
 
@@ -333,21 +423,6 @@ loader.load(
       'Model loaded successfully'
     );
 
-    console.log(
-      'Animations:',
-      gltf.animations
-    );
-
-    console.log(
-      'Model center:',
-      center
-    );
-
-    console.log(
-      'Model size:',
-      size
-    );
-
   },
 
 
@@ -357,14 +432,13 @@ loader.load(
 
     if (xhr.total) {
 
-      const percent =
-        xhr.loaded /
-        xhr.total *
-        100;
-
       console.log(
-        percent.toFixed(0) +
-        '% loaded'
+        (
+          xhr.loaded /
+          xhr.total *
+          100
+        ).toFixed(0)
+        + '% loaded'
       );
 
     }
@@ -377,7 +451,7 @@ loader.load(
   function(error) {
 
     console.error(
-      'Error loading GLB:',
+      'GLB loading error:',
       error
     );
 
@@ -387,16 +461,12 @@ loader.load(
 
 
 /* ========================================
-   CLOCK
+   ANIMATION
 ======================================== */
 
 const clock =
   new THREE.Clock();
 
-
-/* ========================================
-   ANIMATION LOOP
-======================================== */
 
 function animate() {
 
@@ -409,8 +479,6 @@ function animate() {
     clock.getDelta();
 
 
-  /* Blender animation */
-
   if (mixer) {
 
     mixer.update(delta);
@@ -418,12 +486,8 @@ function animate() {
   }
 
 
-  /* Smooth camera */
-
   controls.update();
 
-
-  /* Render */
 
   renderer.render(
     scene,
