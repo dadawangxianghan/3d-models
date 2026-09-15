@@ -40,7 +40,6 @@
 
 </head>
 
-
 <body>
 
 <script type="module">
@@ -97,7 +96,14 @@ renderer.outputColorSpace =
 renderer.toneMapping =
   THREE.ACESFilmicToneMapping;
 
-renderer.toneMappingExposure = 1.5;
+
+/*
+  Slightly darker than before
+  to keep the black-space feeling.
+*/
+
+renderer.toneMappingExposure = 1.25;
+
 
 document.body.appendChild(
   renderer.domElement
@@ -106,7 +112,7 @@ document.body.appendChild(
 
 /* ========================================
    SPACE ENVIRONMENT
-   CURRENT: space_2.jpg
+   space_2.jpg
 ======================================== */
 
 const textureLoader =
@@ -126,38 +132,39 @@ textureLoader.load(
       THREE.SRGBColorSpace;
 
 
-    /* Visible 360° background */
+    /* Visible background */
 
     scene.background =
       texture;
 
 
-    /* Environment reflections */
+    /* Reflections */
 
     scene.environment =
       texture;
 
 
-    /* Environment intensity */
+    /*
+      Lower than before.
+
+      This reduces the reddish/orange
+      contribution coming from the JPG.
+    */
 
     scene.environmentIntensity =
-      1.5;
+      0.75;
 
-
-    /* Background rotation */
 
     scene.backgroundRotation.y =
       THREE.MathUtils.degToRad(0);
 
-
-    /* Reflection rotation */
 
     scene.environmentRotation.y =
       THREE.MathUtils.degToRad(0);
 
 
     console.log(
-      'space_2.jpg loaded successfully'
+      'space_2.jpg loaded'
     );
 
   },
@@ -167,7 +174,7 @@ textureLoader.load(
   function(error) {
 
     console.error(
-      'Space environment loading error:',
+      'Environment loading error:',
       error
     );
 
@@ -187,9 +194,7 @@ const controls =
   );
 
 
-/*
-  Smooth movement
-*/
+/* Smooth movement */
 
 controls.enableDamping =
   true;
@@ -198,10 +203,7 @@ controls.dampingFactor =
   0.05;
 
 
-/*
-  LEFT MOUSE:
-  Rotate
-*/
+/* Rotation */
 
 controls.enableRotate =
   true;
@@ -210,10 +212,7 @@ controls.rotateSpeed =
   0.7;
 
 
-/*
-  MOUSE WHEEL:
-  Zoom
-*/
+/* Wheel scroll = zoom */
 
 controls.enableZoom =
   true;
@@ -222,11 +221,7 @@ controls.zoomSpeed =
   0.5;
 
 
-/*
-  RIGHT MOUSE:
-  Pan / move composition
-  up, down, left, right
-*/
+/* Pan */
 
 controls.enablePan =
   true;
@@ -235,9 +230,43 @@ controls.panSpeed =
   0.8;
 
 
+/* ========================================
+   MOUSE BUTTON MAPPING
+======================================== */
+
+
 /*
-  Full horizontal rotation
+  LEFT DRAG
+  = ROTATE
 */
+
+controls.mouseButtons.LEFT =
+  THREE.MOUSE.ROTATE;
+
+
+/*
+  PRESS MIDDLE MOUSE / WHEEL
+  + DRAG
+  = PAN
+
+  This lets you move the whole
+  composition up/down/left/right.
+*/
+
+controls.mouseButtons.MIDDLE =
+  THREE.MOUSE.PAN;
+
+
+/*
+  RIGHT DRAG
+  = PAN too
+*/
+
+controls.mouseButtons.RIGHT =
+  THREE.MOUSE.PAN;
+
+
+/* Full horizontal rotation */
 
 controls.minAzimuthAngle =
   -Infinity;
@@ -246,9 +275,7 @@ controls.maxAzimuthAngle =
   Infinity;
 
 
-/*
-  Vertical rotation range
-*/
+/* Vertical rotation */
 
 controls.minPolarAngle =
   0.15;
@@ -261,10 +288,18 @@ controls.maxPolarAngle =
    LIGHTING
 ======================================== */
 
+
+/*
+  Very subtle cool ambient light.
+
+  The previous white ambient was 1.5.
+  This one is much weaker and slightly blue.
+*/
+
 const ambientLight =
   new THREE.AmbientLight(
-    0xffffff,
-    1.5
+    0x8faeff,
+    0.22
   );
 
 scene.add(
@@ -272,20 +307,57 @@ scene.add(
 );
 
 
-const hemiLight =
-  new THREE.HemisphereLight(
-    0xffffff,
-    0x222233,
-    2
+/*
+  BLUE KEY LIGHT
+
+  Main blue highlight.
+  Positioned upper-left/front.
+*/
+
+const blueKeyLight =
+  new THREE.DirectionalLight(
+    0x5f8fff,
+    3.2
   );
 
+blueKeyLight.position.set(
+  -8,
+  6,
+  8
+);
+
 scene.add(
-  hemiLight
+  blueKeyLight
+);
+
+
+/*
+  DEEP BLUE RIM LIGHT
+
+  Comes from the opposite side,
+  creating blue edges around
+  spheres and rings.
+*/
+
+const blueRimLight =
+  new THREE.DirectionalLight(
+    0x244dff,
+    2.4
+  );
+
+blueRimLight.position.set(
+  8,
+  -4,
+  -6
+);
+
+scene.add(
+  blueRimLight
 );
 
 
 /* ========================================
-   LOAD GLB MODEL
+   LOAD MODEL
 ======================================== */
 
 const loader =
@@ -300,10 +372,6 @@ loader.load(
 
   './xuanzhuan.glb',
 
-
-  /* ======================================
-     MODEL LOADED
-  ====================================== */
 
   function(gltf) {
 
@@ -338,8 +406,9 @@ loader.load(
           materials.forEach(
             function(material) {
 
+
               /*
-                Render both sides
+                Render inside + outside
               */
 
               material.side =
@@ -347,7 +416,9 @@ loader.load(
 
 
               /*
-                Environment reflection
+                Reduce environment reflection
+                so space_2 doesn't overpower
+                the blue lights.
               */
 
               if (
@@ -356,7 +427,7 @@ loader.load(
               ) {
 
                 material.envMapIntensity =
-                  1.5;
+                  0.85;
 
               }
 
@@ -374,7 +445,7 @@ loader.load(
 
 
     /* ====================================
-       MODEL DIMENSIONS
+       MODEL SIZE
     ==================================== */
 
     const box =
@@ -399,13 +470,10 @@ loader.load(
 
 
     /* ====================================
-       CURRENT STARTING CAMERA
+       CURRENT CAMERA START POSITION
 
-       This is your previous position.
-       You can now adjust it again using:
-       Left mouse = rotate
-       Right mouse = pan
-       Wheel = zoom
+       Keep this for now.
+       You can adjust it again.
     ==================================== */
 
     camera.position.set(
@@ -456,7 +524,7 @@ loader.load(
 
 
     /* ====================================
-       BLENDER ANIMATION
+       ANIMATION
     ==================================== */
 
     if (
@@ -475,10 +543,6 @@ loader.load(
         );
 
 
-      /*
-        Infinite loop
-      */
-
       action.setLoop(
         THREE.LoopRepeat,
         Infinity
@@ -486,8 +550,7 @@ loader.load(
 
 
       /*
-        IMPORTANT:
-        Animation playback speed = 0.1x
+        KEEP ANIMATION AT 0.1x
       */
 
       action.timeScale =
@@ -510,10 +573,6 @@ loader.load(
   },
 
 
-  /* ======================================
-     LOAD PROGRESS
-  ====================================== */
-
   function(xhr) {
 
     if (
@@ -534,10 +593,6 @@ loader.load(
   },
 
 
-  /* ======================================
-     LOAD ERROR
-  ====================================== */
-
   function(error) {
 
     console.error(
@@ -552,13 +607,7 @@ loader.load(
 
 /* ========================================
    CAMERA DEBUG
-
-   Adjust the composition.
-
-   Then press P.
-
-   Camera information will appear
-   in the top-left corner.
+   PRESS P
 ======================================== */
 
 const cameraInfo =
@@ -583,7 +632,7 @@ cameraInfo.style.padding =
   '12px 16px';
 
 cameraInfo.style.background =
-  'rgba(0,0,0,0.75)';
+  'rgba(0,0,0,0.8)';
 
 cameraInfo.style.color =
   'white';
@@ -611,10 +660,6 @@ document.body.appendChild(
   cameraInfo
 );
 
-
-/* ========================================
-   PRESS P
-======================================== */
 
 window.addEventListener(
   'keydown',
@@ -686,10 +731,6 @@ function animate() {
     clock.getDelta();
 
 
-  /*
-    Update Blender animation
-  */
-
   if (
     mixer
   ) {
@@ -701,16 +742,8 @@ function animate() {
   }
 
 
-  /*
-    Update OrbitControls
-  */
-
   controls.update();
 
-
-  /*
-    Render
-  */
 
   renderer.render(
     scene,
