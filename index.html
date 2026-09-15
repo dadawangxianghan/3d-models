@@ -1,13 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
   <title>3D Viewer</title>
 
   <style>
-    html, body {
+    html,
+    body {
       margin: 0;
+      padding: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -29,12 +37,17 @@
     }
   }
   </script>
+
 </head>
 
 
 <body>
 
 <script type="module">
+
+/* ========================================
+   IMPORTS
+======================================== */
 
 import * as THREE from 'three';
 
@@ -45,33 +58,34 @@ import { OrbitControls } from
   'three/addons/controls/OrbitControls.js';
 
 
-/* ---------------------------
+/* ========================================
    SCENE
---------------------------- */
+======================================== */
 
 const scene = new THREE.Scene();
 
 scene.background = new THREE.Color(0x000000);
 
 
-/* ---------------------------
+/* ========================================
    CAMERA
---------------------------- */
+======================================== */
 
 const camera = new THREE.PerspectiveCamera(
-  55,
+  70,
   window.innerWidth / window.innerHeight,
   0.001,
   10000
 );
 
 
-/* ---------------------------
+/* ========================================
    RENDERER
---------------------------- */
+======================================== */
 
 const renderer = new THREE.WebGLRenderer({
-  antialias: true
+  antialias: true,
+  alpha: false
 });
 
 renderer.setPixelRatio(
@@ -83,14 +97,26 @@ renderer.setSize(
   window.innerHeight
 );
 
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.outputColorSpace =
+  THREE.SRGBColorSpace;
 
-document.body.appendChild(renderer.domElement);
+
+/* Tone mapping */
+
+renderer.toneMapping =
+  THREE.ACESFilmicToneMapping;
+
+renderer.toneMappingExposure = 2.0;
 
 
-/* ---------------------------
+document.body.appendChild(
+  renderer.domElement
+);
+
+
+/* ========================================
    CONTROLS
---------------------------- */
+======================================== */
 
 const controls = new OrbitControls(
   camera,
@@ -98,34 +124,61 @@ const controls = new OrbitControls(
 );
 
 controls.enableDamping = true;
+
+controls.dampingFactor = 0.05;
+
 controls.enableZoom = true;
-controls.enablePan = true;
+
+controls.enablePan = false;
+
+controls.rotateSpeed = 0.5;
+
+controls.zoomSpeed = 0.7;
 
 
-/* ---------------------------
-   BASIC LIGHT
---------------------------- */
-
-const light = new THREE.HemisphereLight(
-  0xffffff,
-  0x444444,
-  2
-);
-
-scene.add(light);
+/* ========================================
+   LIGHTING
+======================================== */
 
 
-/* ---------------------------
-   LOAD YOUR GLB
---------------------------- */
+/* General fill light */
+
+const ambientLight =
+  new THREE.AmbientLight(
+    0xffffff,
+    3
+  );
+
+scene.add(ambientLight);
+
+
+/* Soft environment-style light */
+
+const hemiLight =
+  new THREE.HemisphereLight(
+    0xffffff,
+    0x666666,
+    4
+  );
+
+scene.add(hemiLight);
+
+
+/* ========================================
+   LOAD MODEL
+======================================== */
 
 const loader = new GLTFLoader();
 
 let mixer = null;
 
+
 loader.load(
 
   './xuanzhuan.glb',
+
+
+  /* SUCCESS */
 
   function(gltf) {
 
@@ -134,76 +187,197 @@ loader.load(
     scene.add(model);
 
 
-    /* Render surfaces from both sides */
+    /* ------------------------------------
+       DOUBLE SIDED MATERIALS
+       Allows camera to see inside spheres
+    ------------------------------------ */
 
     model.traverse(function(child) {
 
       if (child.isMesh) {
 
-        child.material.side = THREE.DoubleSide;
+        if (Array.isArray(child.material)) {
 
-        child.material.needsUpdate = true;
+          child.material.forEach(
+            function(material) {
+
+              material.side =
+                THREE.DoubleSide;
+
+              material.needsUpdate =
+                true;
+
+            }
+          );
+
+        } else {
+
+          child.material.side =
+            THREE.DoubleSide;
+
+          child.material.needsUpdate =
+            true;
+
+        }
 
       }
 
     });
 
 
-    /* Find model dimensions */
+    /* ====================================
+       CALCULATE MODEL SIZE
+    ==================================== */
 
     const box =
       new THREE.Box3().setFromObject(model);
 
     const center =
-      box.getCenter(new THREE.Vector3());
+      box.getCenter(
+        new THREE.Vector3()
+      );
 
     const size =
-      box.getSize(new THREE.Vector3());
+      box.getSize(
+        new THREE.Vector3()
+      );
 
     const maxDim =
-      Math.max(size.x, size.y, size.z);
+      Math.max(
+        size.x,
+        size.y,
+        size.z
+      );
 
 
-    /* Start outside so we can verify everything */
+    /* ====================================
+       CAMERA — START INSIDE
+    ==================================== */
 
     camera.position.set(
+
       center.x,
+
       center.y,
-      center.z + maxDim * 1.5
+
+      center.z + maxDim * 0.12
+
     );
 
-    controls.target.copy(center);
+
+    /*
+      Look toward the interior
+    */
+
+    controls.target.set(
+
+      center.x,
+
+      center.y,
+
+      center.z - maxDim * 0.30
+
+    );
+
+
+    camera.near =
+      Math.max(
+        maxDim * 0.0001,
+        0.0001
+      );
+
+    camera.far =
+      maxDim * 100;
+
+
+    camera.updateProjectionMatrix();
+
 
     controls.update();
 
 
-    /* PLAY BLENDER ANIMATION */
+    /* ====================================
+       PLAY BLENDER ANIMATION
+    ==================================== */
 
     if (gltf.animations.length > 0) {
 
       mixer =
-        new THREE.AnimationMixer(model);
+        new THREE.AnimationMixer(
+          model
+        );
+
 
       const action =
-        mixer.clipAction(gltf.animations[0]);
+        mixer.clipAction(
+          gltf.animations[0]
+        );
+
 
       action.setLoop(
         THREE.LoopRepeat,
         Infinity
       );
 
+
+      action.clampWhenFinished =
+        false;
+
+
       action.play();
+
+    }
+
+
+    console.log(
+      'Model loaded successfully'
+    );
+
+    console.log(
+      'Animations:',
+      gltf.animations
+    );
+
+    console.log(
+      'Model center:',
+      center
+    );
+
+    console.log(
+      'Model size:',
+      size
+    );
+
+  },
+
+
+  /* PROGRESS */
+
+  function(xhr) {
+
+    if (xhr.total) {
+
+      const percent =
+        xhr.loaded /
+        xhr.total *
+        100;
+
+      console.log(
+        percent.toFixed(0) +
+        '% loaded'
+      );
 
     }
 
   },
 
-  undefined,
+
+  /* ERROR */
 
   function(error) {
 
     console.error(
-      'GLB loading error:',
+      'Error loading GLB:',
       error
     );
 
@@ -212,34 +386,59 @@ loader.load(
 );
 
 
-/* ---------------------------
-   ANIMATION LOOP
---------------------------- */
+/* ========================================
+   CLOCK
+======================================== */
 
-const clock = new THREE.Clock();
+const clock =
+  new THREE.Clock();
+
+
+/* ========================================
+   ANIMATION LOOP
+======================================== */
 
 function animate() {
 
-  requestAnimationFrame(animate);
+  requestAnimationFrame(
+    animate
+  );
 
-  const delta = clock.getDelta();
+
+  const delta =
+    clock.getDelta();
+
+
+  /* Blender animation */
 
   if (mixer) {
+
     mixer.update(delta);
+
   }
+
+
+  /* Smooth camera */
 
   controls.update();
 
-  renderer.render(scene, camera);
+
+  /* Render */
+
+  renderer.render(
+    scene,
+    camera
+  );
 
 }
+
 
 animate();
 
 
-/* ---------------------------
-   RESIZE
---------------------------- */
+/* ========================================
+   RESPONSIVE
+======================================== */
 
 window.addEventListener(
   'resize',
@@ -249,7 +448,9 @@ window.addEventListener(
       window.innerWidth /
       window.innerHeight;
 
+
     camera.updateProjectionMatrix();
+
 
     renderer.setSize(
       window.innerWidth,
@@ -259,7 +460,9 @@ window.addEventListener(
   }
 );
 
+
 </script>
 
 </body>
+
 </html>
