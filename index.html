@@ -45,10 +45,6 @@
 
 <script type="module">
 
-/* ========================================
-   IMPORTS
-======================================== */
-
 import * as THREE from 'three';
 
 import { GLTFLoader } from
@@ -109,15 +105,17 @@ document.body.appendChild(
 
 
 /* ========================================
-   GALAXY ENVIRONMENT
+   SPACE ENVIRONMENT
+   Current image: space_1.jpg
 ======================================== */
 
 const textureLoader =
   new THREE.TextureLoader();
 
+
 textureLoader.load(
 
-  './material_0_baseColor.png',
+  './space_1.jpg',
 
   function(texture) {
 
@@ -128,28 +126,42 @@ textureLoader.load(
       THREE.SRGBColorSpace;
 
 
-    /* Visible galaxy background */
+    /* Visible 360° background */
 
     scene.background = texture;
 
 
-    /* Galaxy reflections */
+    /* Environment reflection */
 
     scene.environment = texture;
 
 
-    /* Environment brightness */
+    /*
+      Environment lighting /
+      reflection intensity
+    */
 
     scene.environmentIntensity = 1.5;
 
 
-    /* Galaxy rotation */
+    /*
+      Rotate space environment
+
+      Change 0 to:
+      45 / 90 / 180 etc.
+      if you want to rotate it.
+    */
 
     scene.backgroundRotation.y =
       THREE.MathUtils.degToRad(0);
 
     scene.environmentRotation.y =
       THREE.MathUtils.degToRad(0);
+
+
+    console.log(
+      'space_1.jpg loaded successfully'
+    );
 
   },
 
@@ -158,7 +170,7 @@ textureLoader.load(
   function(error) {
 
     console.error(
-      'Galaxy texture loading error:',
+      'Space environment loading error:',
       error
     );
 
@@ -177,29 +189,21 @@ const controls = new OrbitControls(
 );
 
 
-/*
-  Smooth movement
-*/
+/* Smooth movement */
 
 controls.enableDamping = true;
 
 controls.dampingFactor = 0.05;
 
 
-/*
-  LEFT MOUSE:
-  rotate / look around
-*/
+/* Left mouse = rotate */
 
 controls.enableRotate = true;
 
 controls.rotateSpeed = 0.7;
 
 
-/*
-  MOUSE WHEEL:
-  zoom in / out
-*/
+/* Mouse wheel = zoom */
 
 controls.enableZoom = true;
 
@@ -207,27 +211,23 @@ controls.zoomSpeed = 0.5;
 
 
 /*
-  RIGHT MOUSE:
-  move view up/down/left/right
+  Final website:
+  disable right-click pan
 */
 
-controls.enablePan = true;
-
-controls.panSpeed = 0.8;
+controls.enablePan = false;
 
 
-/*
-  Full horizontal rotation
-*/
+/* Full horizontal rotation */
 
-controls.minAzimuthAngle = -Infinity;
+controls.minAzimuthAngle =
+  -Infinity;
 
-controls.maxAzimuthAngle = Infinity;
+controls.maxAzimuthAngle =
+  Infinity;
 
 
-/*
-  Vertical rotation range
-*/
+/* Vertical rotation */
 
 controls.minPolarAngle = 0.15;
 
@@ -245,7 +245,9 @@ const ambientLight =
     1.5
   );
 
-scene.add(ambientLight);
+scene.add(
+  ambientLight
+);
 
 
 const hemiLight =
@@ -255,14 +257,18 @@ const hemiLight =
     2
   );
 
-scene.add(hemiLight);
+scene.add(
+  hemiLight
+);
 
 
 /* ========================================
-   LOAD MODEL
+   LOAD GLB MODEL
 ======================================== */
 
-const loader = new GLTFLoader();
+const loader =
+  new GLTFLoader();
+
 
 let mixer = null;
 
@@ -272,66 +278,74 @@ loader.load(
   './xuanzhuan.glb',
 
 
-  /* SUCCESS */
+  /* MODEL LOADED */
 
   function(gltf) {
 
-    const model = gltf.scene;
+    const model =
+      gltf.scene;
 
-    scene.add(model);
+
+    scene.add(
+      model
+    );
 
 
     /* ====================================
        MATERIAL SETTINGS
     ==================================== */
 
-    model.traverse(function(child) {
+    model.traverse(
+      function(child) {
 
-      if (child.isMesh) {
+        if (
+          child.isMesh
+        ) {
 
-        const materials =
-          Array.isArray(child.material)
-            ? child.material
-            : [child.material];
-
-
-        materials.forEach(
-          function(material) {
-
-            /*
-              Render surfaces
-              from both sides
-            */
-
-            material.side =
-              THREE.DoubleSide;
+          const materials =
+            Array.isArray(
+              child.material
+            )
+              ? child.material
+              : [child.material];
 
 
-            /*
-              Galaxy reflection
-              strength
-            */
+          materials.forEach(
+            function(material) {
 
-            if (
-              'envMapIntensity'
-              in material
-            ) {
+              /*
+                Render both sides
+              */
 
-              material.envMapIntensity =
-                1.5;
+              material.side =
+                THREE.DoubleSide;
+
+
+              /*
+                Environment reflection
+              */
+
+              if (
+                'envMapIntensity'
+                in material
+              ) {
+
+                material.envMapIntensity =
+                  1.5;
+
+              }
+
+
+              material.needsUpdate =
+                true;
 
             }
+          );
 
-
-            material.needsUpdate =
-              true;
-
-          }
-        );
+        }
 
       }
-
-    });
+    );
 
 
     /* ====================================
@@ -339,13 +353,10 @@ loader.load(
     ==================================== */
 
     const box =
-      new THREE.Box3().setFromObject(model);
-
-
-    const center =
-      box.getCenter(
-        new THREE.Vector3()
-      );
+      new THREE.Box3()
+        .setFromObject(
+          model
+        );
 
 
     const size =
@@ -363,35 +374,35 @@ loader.load(
 
 
     /* ====================================
-       DEFAULT CAMERA POSITION
-       START INSIDE
+       FINAL OPENING CAMERA
     ==================================== */
 
     camera.position.set(
 
-      center.x,
+      -10.270741824643428,
 
-      center.y,
+      -3.5428384421134655,
 
-      center.z + maxDim * 0.12
+      18.772016980965745
 
     );
 
-
-    /*
-      Camera look target
-    */
 
     controls.target.set(
 
-      center.x,
+      -11.328824611395275,
 
-      center.y,
+      -8.301359579118229,
 
-      center.z - maxDim * 0.30
+      -39.080314964653574
 
     );
 
+
+    camera.fov = 70;
+
+
+    /* Camera clipping */
 
     camera.near =
       Math.max(
@@ -414,7 +425,9 @@ loader.load(
        BLENDER ANIMATION
     ==================================== */
 
-    if (gltf.animations.length > 0) {
+    if (
+      gltf.animations.length > 0
+    ) {
 
       mixer =
         new THREE.AnimationMixer(
@@ -429,7 +442,7 @@ loader.load(
 
 
       /*
-        Infinite loop
+        Loop forever
       */
 
       action.setLoop(
@@ -439,10 +452,8 @@ loader.load(
 
 
       /*
-        IMPORTANT
-
-        Animation playback speed:
-        0.1x
+        IMPORTANT:
+        Animation speed = 0.1x
       */
 
       action.timeScale = 0.1;
@@ -461,26 +472,16 @@ loader.load(
       'Model loaded successfully'
     );
 
-
-    console.log(
-      'Model center:',
-      center
-    );
-
-
-    console.log(
-      'Model size:',
-      size
-    );
-
   },
 
 
-  /* PROGRESS */
+  /* LOAD PROGRESS */
 
   function(xhr) {
 
-    if (xhr.total) {
+    if (
+      xhr.total
+    ) {
 
       console.log(
         (
@@ -496,7 +497,7 @@ loader.load(
   },
 
 
-  /* ERROR */
+  /* LOAD ERROR */
 
   function(error) {
 
@@ -512,33 +513,71 @@ loader.load(
 
 /* ========================================
    CAMERA DEBUG
-   Press P to show camera values
+
+   Press P to show camera information.
 ======================================== */
 
-const cameraInfo = document.createElement('div');
-
-cameraInfo.style.position = 'fixed';
-cameraInfo.style.top = '20px';
-cameraInfo.style.left = '20px';
-cameraInfo.style.zIndex = '9999';
-cameraInfo.style.padding = '12px 16px';
-cameraInfo.style.background = 'rgba(0,0,0,0.75)';
-cameraInfo.style.color = 'white';
-cameraInfo.style.fontFamily = 'monospace';
-cameraInfo.style.fontSize = '13px';
-cameraInfo.style.lineHeight = '1.6';
-cameraInfo.style.borderRadius = '6px';
-cameraInfo.style.display = 'none';
-cameraInfo.style.pointerEvents = 'none';
-
-document.body.appendChild(cameraInfo);
+const cameraInfo =
+  document.createElement(
+    'div'
+  );
 
 
-window.addEventListener('keydown', function(event) {
+cameraInfo.style.position =
+  'fixed';
 
-  if (event.key.toLowerCase() === 'p') {
+cameraInfo.style.top =
+  '20px';
 
-    const text =
+cameraInfo.style.left =
+  '20px';
+
+cameraInfo.style.zIndex =
+  '9999';
+
+cameraInfo.style.padding =
+  '12px 16px';
+
+cameraInfo.style.background =
+  'rgba(0,0,0,0.75)';
+
+cameraInfo.style.color =
+  'white';
+
+cameraInfo.style.fontFamily =
+  'monospace';
+
+cameraInfo.style.fontSize =
+  '13px';
+
+cameraInfo.style.lineHeight =
+  '1.6';
+
+cameraInfo.style.borderRadius =
+  '6px';
+
+cameraInfo.style.display =
+  'none';
+
+cameraInfo.style.pointerEvents =
+  'none';
+
+
+document.body.appendChild(
+  cameraInfo
+);
+
+
+window.addEventListener(
+  'keydown',
+  function(event) {
+
+    if (
+      event.key.toLowerCase()
+      === 'p'
+    ) {
+
+      const text =
 `CAMERA POSITION:
 ${camera.position.x},
 ${camera.position.y},
@@ -552,22 +591,36 @@ ${controls.target.z}
 CAMERA FOV:
 ${camera.fov}`;
 
-    cameraInfo.innerText = text;
-    cameraInfo.style.display = 'block';
 
-    console.log(text);
+      cameraInfo.innerText =
+        text;
 
-    navigator.clipboard
-      .writeText(text)
-      .catch(() => {});
+
+      cameraInfo.style.display =
+        'block';
+
+
+      console.log(
+        text
+      );
+
+
+      navigator.clipboard
+        .writeText(
+          text
+        )
+        .catch(
+          () => {}
+        );
+
+    }
 
   }
-
-});
+);
 
 
 /* ========================================
-   ANIMATION
+   ANIMATION LOOP
 ======================================== */
 
 const clock =
@@ -586,18 +639,22 @@ function animate() {
 
 
   /*
-    Update Blender animation
+    Update model animation
   */
 
-  if (mixer) {
+  if (
+    mixer
+  ) {
 
-    mixer.update(delta);
+    mixer.update(
+      delta
+    );
 
   }
 
 
   /*
-    Update camera controls
+    Update controls
   */
 
   controls.update();
