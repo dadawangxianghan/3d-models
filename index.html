@@ -512,50 +512,58 @@ loader.load(
 
 /* ========================================
    CAMERA DEBUG
-
-   Adjust your view,
-   then press P.
-
-   Open Chrome:
-   Inspect → Console
-
-   Copy the values to ChatGPT.
+   Press P to show camera values
 ======================================== */
 
-window.addEventListener(
-  'keydown',
-  function(event) {
+const cameraInfo = document.createElement('div');
 
-    if (
-      event.key.toLowerCase()
-      === 'p'
-    ) {
+cameraInfo.style.position = 'fixed';
+cameraInfo.style.top = '20px';
+cameraInfo.style.left = '20px';
+cameraInfo.style.zIndex = '9999';
+cameraInfo.style.padding = '12px 16px';
+cameraInfo.style.background = 'rgba(0,0,0,0.75)';
+cameraInfo.style.color = 'white';
+cameraInfo.style.fontFamily = 'monospace';
+cameraInfo.style.fontSize = '13px';
+cameraInfo.style.lineHeight = '1.6';
+cameraInfo.style.borderRadius = '6px';
+cameraInfo.style.display = 'none';
+cameraInfo.style.pointerEvents = 'none';
 
-      console.log(
-        'CAMERA POSITION:',
-        camera.position.x,
-        camera.position.y,
-        camera.position.z
-      );
-
-
-      console.log(
-        'CAMERA TARGET:',
-        controls.target.x,
-        controls.target.y,
-        controls.target.z
-      );
+document.body.appendChild(cameraInfo);
 
 
-      console.log(
-        'CAMERA FOV:',
-        camera.fov
-      );
+window.addEventListener('keydown', function(event) {
 
-    }
+  if (event.key.toLowerCase() === 'p') {
+
+    const text =
+`CAMERA POSITION:
+${camera.position.x},
+${camera.position.y},
+${camera.position.z}
+
+CAMERA TARGET:
+${controls.target.x},
+${controls.target.y},
+${controls.target.z}
+
+CAMERA FOV:
+${camera.fov}`;
+
+    cameraInfo.innerText = text;
+    cameraInfo.style.display = 'block';
+
+    console.log(text);
+
+    navigator.clipboard
+      .writeText(text)
+      .catch(() => {});
 
   }
-);
+
+});
 
 
 /* ========================================
