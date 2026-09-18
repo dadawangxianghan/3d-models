@@ -32,6 +32,7 @@
 
   </style>
 
+
   <script type="importmap">
   {
     "imports": {
@@ -132,8 +133,16 @@ renderer.toneMapping =
   THREE.ACESFilmicToneMapping;
 
 
+/*
+  Lower exposure because
+  Environment Intensity = 5.
+
+  This prevents the spheres
+  from becoming too bright.
+*/
+
 renderer.toneMappingExposure =
-  1.15;
+  0.9;
 
 
 document.body.appendChild(
@@ -231,6 +240,9 @@ const textureLoader =
 
 /* ==================================================
    GALAXY BACKGROUND
+
+   Background brightness is separate
+   from model environment lighting.
 ================================================== */
 
 let galaxySphere =
@@ -292,7 +304,9 @@ textureLoader.load(
 
           /*
             Visible galaxy brightness.
-            Does NOT control model lighting.
+
+            Independent from
+            environmentIntensity.
           */
 
           brightness: {
@@ -308,12 +322,9 @@ textureLoader.load(
 
           varying vec2 vUv;
 
-
           void main() {
 
-            vUv =
-              uv;
-
+            vUv = uv;
 
             gl_Position =
 
@@ -333,29 +344,20 @@ textureLoader.load(
 
         fragmentShader: `
 
-          uniform sampler2D
-            galaxyTexture;
+          uniform sampler2D galaxyTexture;
 
+          uniform float brightness;
 
-          uniform float
-            brightness;
-
-
-          varying vec2
-            vUv;
+          varying vec2 vUv;
 
 
           void main() {
 
-
             vec3 color =
 
               texture2D(
-
                 galaxyTexture,
-
                 vUv
-
               ).rgb;
 
 
@@ -366,11 +368,8 @@ textureLoader.load(
             gl_FragColor =
 
               vec4(
-
                 color,
-
                 1.0
-
               );
 
           }
@@ -407,6 +406,17 @@ textureLoader.load(
 
     console.log(
       'Galaxy background loaded'
+    );
+
+  },
+
+  undefined,
+
+  function(error) {
+
+    console.error(
+      'Galaxy loading error:',
+      error
     );
 
   }
@@ -458,17 +468,20 @@ textureLoader.load(
       envMap;
 
 
-    /*
-      UPDATED:
-      Environment intensity = 3
-    */
+    /* ==============================================
+       SKETCHFAB-LIKE ENVIRONMENT STRENGTH
+
+       Requested:
+       5
+    ============================================== */
 
     scene.environmentIntensity =
-      10;
+      5;
 
 
     /*
-      Sketchfab environment orientation
+      Sketchfab environment orientation:
+      133.333°
     */
 
     scene.environmentRotation.y =
@@ -481,137 +494,37 @@ textureLoader.load(
       'PBR environment loaded'
     );
 
+  },
+
+  undefined,
+
+  function(error) {
+
+    console.error(
+      'Environment loading error:',
+      error
+    );
+
   }
 
 );
 
 
 /* ==================================================
-   SOFT DIFFUSE FILL
+   LIGHTS
+
+   NONE.
+
+   No AmbientLight.
+   No HemisphereLight.
+   No DirectionalLight.
+   No RectAreaLight.
+
+   Scene lighting comes only
+   from the PBR environment.
 ================================================== */
 
-const ambientLight =
-  new THREE.AmbientLight(
 
-    0xffead6,
-
-    0.65
-
-  );
-
-
-scene.add(
-  ambientLight
-);
-
-
-const hemisphereLight =
-  new THREE.HemisphereLight(
-
-    0xffd6a3,
-
-    0x10182c,
-
-    0.75
-
-  );
-
-
-scene.add(
-  hemisphereLight
-);
-
-
-/* ==================================================
-   WARM AREA LIGHT
-================================================== */
-
-/*const warmAreaLight =
-  new THREE.RectAreaLight(
-
-    0xffc98a,
-
-    2.2,
-
-    18,
-
-    18
-
-  );
-
-
-warmAreaLight.position.set(
-
-  12,
-
-  12,
-
-  18
-
-);
-
-
-warmAreaLight.lookAt(
-
-  0,
-
-  0,
-
-  0
-
-);
-
-
-scene.add(
-  warmAreaLight
-);
-
-
-/* ==================================================
-   BLUE AREA LIGHT
-================================================== */
-/* 
-const blueAreaLight =
-  new THREE.RectAreaLight(
-
-    0x6c8dff,
-
-    1.4,
-
-    20,
-
-    20
-
-  );
-
-
-blueAreaLight.position.set(
-
-  -15,
-
-  5,
-
-  10
-
-);
-
-
-blueAreaLight.lookAt(
-
-  0,
-
-  0,
-
-  0
-
-);
-
-
-scene.add(
-  blueAreaLight
-);
-
- */
 /* ==================================================
    MODEL
 ================================================== */
@@ -641,7 +554,7 @@ loader.load(
 
 
     /* ==============================================
-       MATERIALS
+       MATERIAL SETTINGS
     ============================================== */
 
     model.traverse(
@@ -674,85 +587,115 @@ loader.load(
           function(material) {
 
 
+            /* ======================================
+               DOUBLE SIDED
+            ====================================== */
+
             material.side =
               THREE.DoubleSide;
 
 
-            /*
-              Keep some diffuse softness.
-            */
+            /* ======================================
+               ROUGHNESS
+
+               Sketchfab = 0
+            ====================================== */
 
             if (
               'roughness'
               in material
             ) {
 
-
               material.roughness =
-
-                Math.max(
-
-                  material.roughness,
-
-                  0.28
-
-                );
+                0;
 
             }
 
 
-            /*
-              Material reflection strength.
-            */
+            /* ======================================
+               GLASS / TRANSMISSION
+
+               Sketchfab = 0
+            ====================================== */
+
+            if (
+              'transmission'
+              in material
+            ) {
+
+              material.transmission =
+                0;
+
+            }
+
+
+            /* ======================================
+               REFLECTIVITY
+
+               Sketchfab clear coat
+               reflectivity = 0
+            ====================================== */
+
+            if (
+              'reflectivity'
+              in material
+            ) {
+
+              material.reflectivity =
+                0;
+
+            }
+
+
+            /* ======================================
+               ENVIRONMENT REFLECTION
+
+               Scene intensity is 5,
+               so material intensity is
+               intentionally lower.
+
+               This prevents the spheres
+               becoming over-bright.
+            ====================================== */
 
             if (
               'envMapIntensity'
               in material
             ) {
 
-
               material.envMapIntensity =
-                1.25;
+                0.45;
 
             }
 
 
-            /*
-              Preserve and soften clearcoat.
-            */
+            /* ======================================
+               CLEAR COAT
+
+               Sketchfab:
+               Clear Coat = ON
+               Intensity = 1
+               Surface roughness = 0
+            ====================================== */
 
             if (
               material.isMeshPhysicalMaterial
             ) {
 
-
-              if (
-                material.clearcoat > 0
-              ) {
+              material.clearcoat =
+                1;
 
 
-                material.clearcoat =
-
-                  Math.min(
-
-                    material.clearcoat,
-
-                    0.7
-
-                  );
+              material.clearcoatRoughness =
+                0;
 
 
-                material.clearcoatRoughness =
+              material.transmission =
+                0;
 
-                  Math.max(
 
-                    material.clearcoatRoughness,
-
-                    0.18
-
-                  );
-
-              }
+              material.reflectivity =
+                0;
 
             }
 
@@ -807,11 +750,11 @@ loader.load(
 
     camera.position.set(
 
-      -6.281442836548245,
+      4.583646459952426,
 
-      -0.6146532170676694,
+      -5.288950308574907,
 
-      -15.951038145425533
+      15.909453303006309
 
     );
 
@@ -822,11 +765,11 @@ loader.load(
 
     controls.target.set(
 
-      6.12541642859908,
+      -7.534758927241818,
 
-      -1.5863933753734871,
+      -0.9440802729326992,
 
-      -0.7059017212859313
+      -1.1863348083699172
 
     );
 
@@ -838,6 +781,10 @@ loader.load(
     camera.fov =
       45;
 
+
+    /* ==============================================
+       CAMERA CLIPPING
+    ============================================== */
 
     camera.near =
 
@@ -893,7 +840,7 @@ loader.load(
 
 
       /*
-        KEEP ANIMATION AT 0.1x
+        KEEP ANIMATION AT 0.1×
       */
 
       action.timeScale =
@@ -1104,7 +1051,6 @@ function animate() {
     mixer
   ) {
 
-
     mixer.update(
       delta
     );
@@ -1112,10 +1058,14 @@ function animate() {
   }
 
 
+  /*
+    Galaxy stays centered
+    around camera.
+  */
+
   if (
     galaxySphere
   ) {
-
 
     galaxySphere.position.copy(
       camera.position
