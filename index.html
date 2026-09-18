@@ -64,7 +64,6 @@ const scene =
 
 /* ========================================
    CAMERA
-   FOV = 45
 ======================================== */
 
 const camera =
@@ -110,20 +109,33 @@ renderer.toneMapping =
 
 
 /*
-  Overall exposure.
-
-  Keep this moderate because
-  the environment itself will
-  now do most of the lighting.
+  Slightly brighter than before,
+  but still keep deep blacks.
 */
 
 renderer.toneMappingExposure =
-  1.15;
+  1.25;
 
 
 document.body.appendChild(
   renderer.domElement
 );
+
+
+/* ========================================
+   PMREM
+
+   Makes the environment behave
+   more naturally with PBR materials.
+======================================== */
+
+const pmremGenerator =
+  new THREE.PMREMGenerator(
+    renderer
+  );
+
+
+pmremGenerator.compileEquirectangularShader();
 
 
 /* ========================================
@@ -150,47 +162,64 @@ textureLoader.load(
 
 
     /* ====================================
-       VISIBLE BACKGROUND
+       VISIBLE GALAXY BACKGROUND
+
+       Keep this at 0° so the galaxy
+       remains visible in the composition.
     ==================================== */
 
     scene.background =
       texture;
 
 
-    /* ====================================
-       PBR ENVIRONMENT
-    ==================================== */
-
-    scene.environment =
-      texture;
+    scene.backgroundRotation.y =
+      THREE.MathUtils.degToRad(
+        0
+      );
 
 
     /*
-      Environment intensity.
-
-      Sketchfab Brightness = 12.0142
-      does NOT map 1:1 to Three.js.
-
-      So we use a stronger but
-      controlled PBR environment.
+      Brighten visible background
+      independently from reflections.
     */
 
-    scene.environmentIntensity =
-      1.65;
+    scene.backgroundIntensity =
+      1.35;
 
 
     /* ====================================
-       ENVIRONMENT ORIENTATION
+       PBR ENVIRONMENT
 
-       Sketchfab:
-       133.333 degrees
+       Use PMREM for softer,
+       more natural reflection.
     ==================================== */
 
-    scene.backgroundRotation.y =
-      THREE.MathUtils.degToRad(
-        133.333
-      );
+    const envMap =
+      pmremGenerator
+        .fromEquirectangular(
+          texture
+        )
+        .texture;
 
+
+    scene.environment =
+      envMap;
+
+
+    /*
+      Reflection / lighting intensity.
+    */
+
+    scene.environmentIntensity =
+      1.15;
+
+
+    /*
+      Sketchfab environment orientation.
+
+      We rotate LIGHTING separately
+      from the visible galaxy.
+    */
 
     scene.environmentRotation.y =
       THREE.MathUtils.degToRad(
@@ -199,7 +228,7 @@ textureLoader.load(
 
 
     console.log(
-      'Space_4.jpg environment loaded'
+      'Space_4 environment loaded'
     );
 
   },
@@ -231,8 +260,6 @@ const controls =
   );
 
 
-/* Smooth movement */
-
 controls.enableDamping =
   true;
 
@@ -251,7 +278,7 @@ controls.rotateSpeed =
   0.7;
 
 
-/* Wheel scroll = zoom */
+/* Zoom */
 
 controls.enableZoom =
   true;
@@ -272,33 +299,23 @@ controls.panSpeed =
 
 
 /* ========================================
-   MOUSE CONTROLS
+   MOUSE MAPPING
 ======================================== */
 
 
-/*
-  LEFT DRAG
-  = ROTATE
-*/
+/* Left drag = rotate */
 
 controls.mouseButtons.LEFT =
   THREE.MOUSE.ROTATE;
 
 
-/*
-  PRESS MIDDLE MOUSE / WHEEL
-  + DRAG
-  = PAN
-*/
+/* Middle mouse drag = pan */
 
 controls.mouseButtons.MIDDLE =
   THREE.MOUSE.PAN;
 
 
-/*
-  RIGHT DRAG
-  = PAN
-*/
+/* Right drag = pan */
 
 controls.mouseButtons.RIGHT =
   THREE.MOUSE.PAN;
@@ -314,7 +331,7 @@ controls.maxAzimuthAngle =
   Infinity;
 
 
-/* Vertical rotation */
+/* Vertical range */
 
 controls.minPolarAngle =
   0.15;
@@ -325,17 +342,54 @@ controls.maxPolarAngle =
 
 
 /* ========================================
-   LIGHTING
+   SOFT WARM FILL LIGHTING
 
-   IMPORTANT:
-
-   No AmbientLight.
-   No HemisphereLight.
-   No DirectionalLight.
-
-   Space_4 environment is now
-   the main PBR lighting source.
+   No directional lights.
+   No hard specular light dots.
 ======================================== */
+
+
+/*
+  Very soft warm ambient fill.
+*/
+
+const ambientLight =
+  new THREE.AmbientLight(
+
+    0xffd6a0,
+
+    0.13
+
+  );
+
+
+scene.add(
+  ambientLight
+);
+
+
+/*
+  Gentle warm hemisphere fill.
+
+  Gives softer diffuse shading
+  without looking like a spotlight.
+*/
+
+const hemiLight =
+  new THREE.HemisphereLight(
+
+    0xffd7a3,
+
+    0x08090f,
+
+    0.20
+
+  );
+
+
+scene.add(
+  hemiLight
+);
 
 
 /* ========================================
@@ -400,10 +454,10 @@ loader.load(
 
 
               /* ==========================
-                 PBR SURFACE
+                 ROUGHNESS
 
-                 Sketchfab:
-                 Surface Roughness = 0
+                 Softer than the previous
+                 mirror-like roughness 0.
               ========================== */
 
               if (
@@ -412,7 +466,7 @@ loader.load(
               ) {
 
                 material.roughness =
-                  0;
+                  0.32;
 
               }
 
@@ -427,7 +481,7 @@ loader.load(
               ) {
 
                 material.envMapIntensity =
-                  1.65;
+                  1.15;
 
               }
 
@@ -435,9 +489,8 @@ loader.load(
               /* ==========================
                  CLEAR COAT
 
-                 Sketchfab:
-                 Clear Coat = ON
-                 Intensity = 1
+                 Keep glossy coating,
+                 but not pure mirror.
               ========================== */
 
               if (
@@ -445,15 +498,11 @@ loader.load(
               ) {
 
                 material.clearcoat =
-                  1;
+                  0.55;
 
-
-                /*
-                  Very smooth clear coat
-                */
 
                 material.clearcoatRoughness =
-                  0;
+                  0.18;
 
               }
 
@@ -496,7 +545,7 @@ loader.load(
 
 
     /* ====================================
-       FINAL CAMERA POSITION
+       FINAL CAMERA
     ==================================== */
 
     camera.position.set(
@@ -510,10 +559,6 @@ loader.load(
     );
 
 
-    /* ====================================
-       FINAL CAMERA TARGET
-    ==================================== */
-
     controls.target.set(
 
       -19.08847540973339,
@@ -524,10 +569,6 @@ loader.load(
 
     );
 
-
-    /* ====================================
-       FIELD OF VIEW
-    ==================================== */
 
     camera.fov =
       45;
@@ -555,7 +596,7 @@ loader.load(
 
 
     /* ====================================
-       BLENDER ANIMATION
+       ANIMATION
     ==================================== */
 
     if (
@@ -581,8 +622,7 @@ loader.load(
 
 
       /*
-        IMPORTANT:
-        Animation speed stays at 0.1x
+        Keep animation at 0.1×
       */
 
       action.timeScale =
@@ -605,10 +645,6 @@ loader.load(
   },
 
 
-  /* ======================================
-     LOAD PROGRESS
-  ====================================== */
-
   function(xhr) {
 
     if (
@@ -628,10 +664,6 @@ loader.load(
 
   },
 
-
-  /* ======================================
-     LOAD ERROR
-  ====================================== */
 
   function(error) {
 
@@ -700,10 +732,6 @@ document.body.appendChild(
   cameraInfo
 );
 
-
-/* ========================================
-   PRESS P
-======================================== */
 
 window.addEventListener(
   'keydown',
