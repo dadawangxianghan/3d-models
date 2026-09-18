@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-
   <meta charset="UTF-8">
 
   <meta
@@ -13,7 +12,6 @@
   <title>3D Viewer</title>
 
   <style>
-
     html,
     body {
       margin: 0;
@@ -29,15 +27,16 @@
       width: 100%;
       height: 100%;
     }
-
   </style>
-
 
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+      "three":
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+
+      "three/addons/":
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
     }
   }
   </script>
@@ -50,13 +49,35 @@
 
 <script type="module">
 
+/* ==================================================
+   IMPORTS
+================================================== */
+
 import * as THREE from 'three';
 
-import { GLTFLoader } from
-  'three/addons/loaders/GLTFLoader.js';
+import {
+  GLTFLoader
+} from 'three/addons/loaders/GLTFLoader.js';
 
-import { OrbitControls } from
-  'three/addons/controls/OrbitControls.js';
+import {
+  OrbitControls
+} from 'three/addons/controls/OrbitControls.js';
+
+import {
+  EffectComposer
+} from 'three/addons/postprocessing/EffectComposer.js';
+
+import {
+  RenderPass
+} from 'three/addons/postprocessing/RenderPass.js';
+
+import {
+  UnrealBloomPass
+} from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+import {
+  ShaderPass
+} from 'three/addons/postprocessing/ShaderPass.js';
 
 
 /* ==================================================
@@ -66,11 +87,8 @@ import { OrbitControls } from
 const scene =
   new THREE.Scene();
 
-
 scene.background =
-  new THREE.Color(
-    0x000000
-  );
+  new THREE.Color(0x000000);
 
 
 /* ==================================================
@@ -119,7 +137,6 @@ renderer.setPixelRatio(
 renderer.setSize(
 
   window.innerWidth,
-
   window.innerHeight
 
 );
@@ -129,17 +146,24 @@ renderer.outputColorSpace =
   THREE.SRGBColorSpace;
 
 
+/*
+  Sketchfab screenshot:
+  Tone Mapping = Reinhard
+*/
+
 renderer.toneMapping =
-  THREE.ACESFilmicToneMapping;
+  THREE.ReinhardToneMapping;
 
 
 /*
-  Keep exposure controlled because
-  environment intensity is high.
+  Sketchfab exposure scale
+  doesn't map 1:1 to Three.js.
+
+  Start around 1.0.
 */
 
 renderer.toneMappingExposure =
-  0.9;
+  1.0;
 
 
 document.body.appendChild(
@@ -169,8 +193,6 @@ controls.dampingFactor =
   0.05;
 
 
-/* Rotate */
-
 controls.enableRotate =
   true;
 
@@ -178,8 +200,6 @@ controls.enableRotate =
 controls.rotateSpeed =
   0.7;
 
-
-/* Mouse wheel scroll = zoom */
 
 controls.enableZoom =
   true;
@@ -189,8 +209,6 @@ controls.zoomSpeed =
   0.5;
 
 
-/* Pan */
-
 controls.enablePan =
   true;
 
@@ -199,14 +217,9 @@ controls.panSpeed =
   0.8;
 
 
-/* ==================================================
-   MOUSE CONTROLS
-================================================== */
-
-
 /*
-  LEFT DRAG
-  = ROTATE
+  LEFT MOUSE
+  = rotate
 */
 
 controls.mouseButtons.LEFT =
@@ -214,9 +227,8 @@ controls.mouseButtons.LEFT =
 
 
 /*
-  PRESS MIDDLE MOUSE / WHEEL
-  + DRAG
-  = PAN
+  HOLD MIDDLE MOUSE
+  = move / pan
 */
 
 controls.mouseButtons.MIDDLE =
@@ -224,15 +236,13 @@ controls.mouseButtons.MIDDLE =
 
 
 /*
-  RIGHT DRAG
-  = PAN
+  RIGHT MOUSE
+  = move / pan
 */
 
 controls.mouseButtons.RIGHT =
   THREE.MOUSE.PAN;
 
-
-/* Full horizontal rotation */
 
 controls.minAzimuthAngle =
   -Infinity;
@@ -242,14 +252,294 @@ controls.maxAzimuthAngle =
   Infinity;
 
 
-/* Vertical rotation range */
-
 controls.minPolarAngle =
   0.15;
 
 
 controls.maxPolarAngle =
   Math.PI - 0.15;
+
+
+/* ==================================================
+   POST PROCESSING
+================================================== */
+
+const composer =
+  new EffectComposer(
+    renderer
+  );
+
+
+composer.setPixelRatio(
+
+  Math.min(
+    window.devicePixelRatio,
+    2
+  )
+
+);
+
+
+composer.setSize(
+
+  window.innerWidth,
+
+  window.innerHeight
+
+);
+
+
+/* ==================================================
+   NORMAL RENDER PASS
+================================================== */
+
+const renderPass =
+  new RenderPass(
+
+    scene,
+
+    camera
+
+  );
+
+
+composer.addPass(
+  renderPass
+);
+
+
+/* ==================================================
+   BLOOM
+
+   Sketchfab reference:
+
+   Threshold  = 0.177
+   Intensity  = 0.5
+   Radius     = 0.533
+
+   Three.js UnrealBloom isn't numerically identical,
+   but these are a good starting translation.
+================================================== */
+
+const bloomPass =
+  new UnrealBloomPass(
+
+    new THREE.Vector2(
+
+      window.innerWidth,
+
+      window.innerHeight
+
+    ),
+
+    0.50,   // strength
+
+    0.53,   // radius
+
+    0.18    // threshold
+
+  );
+
+
+composer.addPass(
+  bloomPass
+);
+
+
+/* ==================================================
+   VIGNETTE + SHARPEN PASS
+
+   Sketchfab reference:
+
+   Vignette:
+   amount   = 0.567
+   hardness = 0.478
+
+   Sharpness:
+   0.2
+================================================== */
+
+const finalShader = {
+
+  uniforms: {
+
+    tDiffuse: {
+      value: null
+    },
+
+    resolution: {
+      value: new THREE.Vector2(
+        window.innerWidth,
+        window.innerHeight
+      )
+    },
+
+    vignetteAmount: {
+      value: 0.567
+    },
+
+    vignetteHardness: {
+      value: 0.478
+    },
+
+    sharpness: {
+      value: 0.20
+    }
+
+  },
+
+
+  vertexShader: `
+
+    varying vec2 vUv;
+
+    void main() {
+
+      vUv = uv;
+
+      gl_Position =
+        projectionMatrix *
+        modelViewMatrix *
+        vec4(position, 1.0);
+
+    }
+
+  `,
+
+
+  fragmentShader: `
+
+    uniform sampler2D tDiffuse;
+
+    uniform vec2 resolution;
+
+    uniform float vignetteAmount;
+
+    uniform float vignetteHardness;
+
+    uniform float sharpness;
+
+    varying vec2 vUv;
+
+
+    void main() {
+
+      vec2 texel =
+        1.0 / resolution;
+
+
+      vec3 center =
+        texture2D(
+          tDiffuse,
+          vUv
+        ).rgb;
+
+
+      vec3 north =
+        texture2D(
+          tDiffuse,
+          vUv + vec2(0.0, texel.y)
+        ).rgb;
+
+
+      vec3 south =
+        texture2D(
+          tDiffuse,
+          vUv - vec2(0.0, texel.y)
+        ).rgb;
+
+
+      vec3 east =
+        texture2D(
+          tDiffuse,
+          vUv + vec2(texel.x, 0.0)
+        ).rgb;
+
+
+      vec3 west =
+        texture2D(
+          tDiffuse,
+          vUv - vec2(texel.x, 0.0)
+        ).rgb;
+
+
+      /*
+        Mild unsharp mask.
+      */
+
+      vec3 blur =
+        (
+          north +
+          south +
+          east +
+          west
+        ) * 0.25;
+
+
+      vec3 color =
+        center +
+        (
+          center - blur
+        ) *
+        sharpness;
+
+
+      /*
+        Vignette
+      */
+
+      vec2 p =
+        vUv - 0.5;
+
+
+      float distanceFromCenter =
+        length(
+          p * vec2(1.0, 0.85)
+        );
+
+
+      float edge =
+        smoothstep(
+
+          0.25 +
+          vignetteHardness * 0.15,
+
+          0.78,
+
+          distanceFromCenter
+
+        );
+
+
+      color *=
+        1.0 -
+        edge *
+        vignetteAmount *
+        0.55;
+
+
+      gl_FragColor =
+        vec4(
+          color,
+          1.0
+        );
+
+    }
+
+  `
+
+};
+
+
+const finalPass =
+  new ShaderPass(
+    finalShader
+  );
+
+
+composer.addPass(
+  finalPass
+);
 
 
 /* ==================================================
@@ -262,11 +552,12 @@ const textureLoader =
 
 /* ==================================================
    GALAXY BACKGROUND
+
    Space_4.jpg
 
    IMPORTANT:
-   Visible background brightness is
-   independent from model lighting.
+   Visible galaxy and PBR lighting are
+   controlled separately.
 ================================================== */
 
 let galaxySphere =
@@ -312,6 +603,11 @@ textureLoader.load(
           false,
 
 
+        /*
+          Prevent renderer tone mapping
+          from crushing the background.
+        */
+
         toneMapped:
           false,
 
@@ -329,13 +625,13 @@ textureLoader.load(
           /*
             Visible galaxy brightness.
 
-            This DOES NOT affect
-            model lighting.
+            Keep this separate from
+            environmentIntensity.
           */
 
           brightness: {
 
-            value: 1.05
+            value: 1.0
 
           }
 
@@ -349,10 +645,7 @@ textureLoader.load(
 
           void main() {
 
-
-            vUv =
-              uv;
-
+            vUv = uv;
 
             gl_Position =
 
@@ -380,7 +673,6 @@ textureLoader.load(
 
 
           void main() {
-
 
             vec3 color =
 
@@ -418,16 +710,6 @@ textureLoader.load(
       );
 
 
-    /*
-      Visible galaxy orientation
-    */
-
-    galaxySphere.rotation.y =
-      THREE.MathUtils.degToRad(
-        0
-      );
-
-
     galaxySphere.renderOrder =
       -1000;
 
@@ -450,7 +732,7 @@ textureLoader.load(
   function(error) {
 
     console.error(
-      'Galaxy loading error:',
+      'Galaxy background error:',
       error
     );
 
@@ -460,7 +742,7 @@ textureLoader.load(
 
 
 /* ==================================================
-   PBR ENVIRONMENT
+   ENVIRONMENT MAP
 ================================================== */
 
 const pmremGenerator =
@@ -504,9 +786,10 @@ textureLoader.load(
 
 
     /* ==============================================
-       ENVIRONMENT INTENSITY
+       ENVIRONMENT LIGHTING
 
-       Requested value = 5
+       Keep requested value:
+       5
     ============================================== */
 
     scene.environmentIntensity =
@@ -514,9 +797,9 @@ textureLoader.load(
 
 
     /* ==============================================
-       ENVIRONMENT ORIENTATION
+       SKETCHFAB ORIENTATION
 
-       Sketchfab = 133.333°
+       133.333°
     ============================================== */
 
     scene.environmentRotation.y =
@@ -526,7 +809,7 @@ textureLoader.load(
 
 
     console.log(
-      'PBR environment loaded'
+      'Environment loaded'
     );
 
   },
@@ -538,7 +821,7 @@ textureLoader.load(
   function(error) {
 
     console.error(
-      'Environment loading error:',
+      'Environment error:',
       error
     );
 
@@ -548,17 +831,13 @@ textureLoader.load(
 
 
 /* ==================================================
-   LIGHTING
+   LIGHTS
 
-   NO EXTRA LIGHTS.
+   NONE
 
-   No AmbientLight
-   No HemisphereLight
-   No DirectionalLight
-   No PointLight
-   No RectAreaLight
-
-   Lighting comes from Space_4 environment.
+   Sketchfab's environment is doing the
+   main work, so we still don't add
+   artificial point/area lights here.
 ================================================== */
 
 
@@ -592,7 +871,28 @@ loader.load(
 
 
     /* ==============================================
-       MATERIAL SETTINGS
+       MATERIALS
+
+       Sketchfab reference:
+
+       Workflow       Metalness
+       Base Color     dark red
+       Metalness      0.67
+       Specular F0    0.5
+       Roughness      0
+
+       Clear Coat     ON
+       Intensity      1
+       Reflectivity   0
+       Roughness      0
+
+       Emission       ON / black
+
+       AO             OFF
+       Normal/Bump    OFF
+       SSS            OFF
+       Sheen          OFF
+       Opacity        OFF
     ============================================== */
 
     model.traverse(
@@ -627,9 +927,6 @@ loader.load(
 
             /* ======================================
                DOUBLE SIDED
-
-               Important because camera can
-               move inside the structure.
             ====================================== */
 
             material.side =
@@ -637,17 +934,32 @@ loader.load(
 
 
             /* ======================================
+               METALNESS
+
+               Sketchfab = 0.67
+            ====================================== */
+
+            if (
+              'metalness'
+              in material
+            ) {
+
+              material.metalness =
+                0.67;
+
+            }
+
+
+            /* ======================================
                ROUGHNESS
 
-               Previous version:
-               0 = very polished / steel-like
+               Sketchfab = 0
 
-               New:
-               0.38 = softer reflection.
+               Three.js gets too steel-like
+               at literal zero, so use 0.06.
 
-               Galaxy is still reflected,
-               but highlight edges become
-               wider and softer.
+               This keeps the reflections sharp
+               while Bloom provides softness.
             ====================================== */
 
             if (
@@ -656,15 +968,28 @@ loader.load(
             ) {
 
               material.roughness =
-                0.38;
+                0.06;
 
             }
 
 
             /* ======================================
-               TRANSMISSION / GLASS
+               ENVIRONMENT REFLECTION
+            ====================================== */
 
-               Keep glass at 0.
+            if (
+              'envMapIntensity'
+              in material
+            ) {
+
+              material.envMapIntensity =
+                0.8;
+
+            }
+
+
+            /* ======================================
+               NO GLASS
             ====================================== */
 
             if (
@@ -679,27 +1004,6 @@ loader.load(
 
 
             /* ======================================
-               ENVIRONMENT REFLECTION
-
-               Scene intensity is already 5.
-
-               Keep per-material contribution
-               controlled so the spheres don't
-               become excessively bright.
-            ====================================== */
-
-            if (
-              'envMapIntensity'
-              in material
-            ) {
-
-              material.envMapIntensity =
-                0.42;
-
-            }
-
-
-            /* ======================================
                PHYSICAL MATERIAL
             ====================================== */
 
@@ -709,37 +1013,32 @@ loader.load(
 
 
               /*
-                Softer clear coat.
-
-                Previous:
-                1.0
-
-                New:
-                0.35
+                Sketchfab:
+                Clear Coat intensity = 1
               */
 
               material.clearcoat =
-                0.35;
+                1.0;
 
 
               /*
-                Soften clear-coat reflection.
+                Sketchfab:
+                Clear Coat roughness = 0
+
+                Tiny 0.03 compensation
+                for Three.js.
               */
 
               material.clearcoatRoughness =
-                0.32;
+                0.03;
 
 
               /*
-                No glass transmission.
-              */
+                Sketchfab Specular F0 = 0.5.
 
-              material.transmission =
-                0;
-
-
-              /*
-                Reduce sharp specular response.
+                Three's specularIntensity isn't
+                exactly the same control, so don't
+                force it down aggressively.
               */
 
               if (
@@ -748,9 +1047,39 @@ loader.load(
               ) {
 
                 material.specularIntensity =
-                  0.65;
+                  1.0;
 
               }
+
+
+              material.transmission =
+                0;
+
+            }
+
+
+            /* ======================================
+               EMISSION
+
+               Screenshot shows emission ON
+               but its color is black.
+
+               That means effectively no visible
+               self illumination.
+            ====================================== */
+
+            if (
+              'emissive'
+              in material
+            ) {
+
+              material.emissive.set(
+                0x000000
+              );
+
+
+              material.emissiveIntensity =
+                0;
 
             }
 
@@ -768,7 +1097,7 @@ loader.load(
 
 
     /* ==============================================
-       MODEL SIZE
+       MODEL BOUNDS
     ============================================== */
 
     const box =
@@ -800,7 +1129,7 @@ loader.load(
 
 
     /* ==============================================
-       NEW CAMERA POSITION
+       LATEST CAMERA POSITION
     ============================================== */
 
     camera.position.set(
@@ -815,7 +1144,7 @@ loader.load(
 
 
     /* ==============================================
-       NEW CAMERA TARGET
+       LATEST CAMERA TARGET
     ============================================== */
 
     controls.target.set(
@@ -830,16 +1159,12 @@ loader.load(
 
 
     /* ==============================================
-       CAMERA FOV
+       FOV
     ============================================== */
 
     camera.fov =
       45;
 
-
-    /* ==============================================
-       CAMERA CLIPPING
-    ============================================== */
 
     camera.near =
 
@@ -894,11 +1219,10 @@ loader.load(
       );
 
 
-      /* ==========================================
-         IMPORTANT
-
-         Animation remains at 0.1× speed.
-      ========================================== */
+      /*
+        IMPORTANT:
+        keep animation at 0.1×
+      */
 
       action.timeScale =
         0.1;
@@ -919,10 +1243,6 @@ loader.load(
 
   },
 
-
-  /* ==============================================
-     LOAD PROGRESS
-  ============================================== */
 
   function(xhr) {
 
@@ -948,10 +1268,6 @@ loader.load(
 
   },
 
-
-  /* ==============================================
-     LOAD ERROR
-  ============================================== */
 
   function(error) {
 
@@ -998,7 +1314,7 @@ cameraInfo.style.padding =
 
 
 cameraInfo.style.background =
-  'rgba(0,0,0,0.8)';
+  'rgba(0,0,0,0.82)';
 
 
 cameraInfo.style.color =
@@ -1033,10 +1349,6 @@ document.body.appendChild(
   cameraInfo
 );
 
-
-/* ==================================================
-   PRESS P
-================================================== */
 
 window.addEventListener(
 
@@ -1116,8 +1428,6 @@ function animate() {
     clock.getDelta();
 
 
-  /* Update Blender animation */
-
   if (
     mixer
   ) {
@@ -1131,9 +1441,6 @@ function animate() {
 
   /*
     Keep galaxy centered around camera.
-
-    This makes it behave like
-    infinitely distant space.
   */
 
   if (
@@ -1150,13 +1457,13 @@ function animate() {
   controls.update();
 
 
-  renderer.render(
+  /*
+    IMPORTANT:
+    Render composer instead of renderer
+    so Bloom / Vignette / Sharpness work.
+  */
 
-    scene,
-
-    camera
-
-  );
+  composer.render();
 
 }
 
@@ -1165,7 +1472,7 @@ animate();
 
 
 /* ==================================================
-   RESPONSIVE
+   RESIZE
 ================================================== */
 
 window.addEventListener(
@@ -1175,22 +1482,40 @@ window.addEventListener(
   function() {
 
 
-    camera.aspect =
+    const width =
+      window.innerWidth;
 
-      window.innerWidth /
+
+    const height =
       window.innerHeight;
+
+
+    camera.aspect =
+      width / height;
 
 
     camera.updateProjectionMatrix();
 
 
     renderer.setSize(
-
-      window.innerWidth,
-
-      window.innerHeight
-
+      width,
+      height
     );
+
+
+    composer.setSize(
+      width,
+      height
+    );
+
+
+    finalPass.uniforms
+      .resolution
+      .value
+      .set(
+        width,
+        height
+      );
 
   }
 
