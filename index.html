@@ -32,7 +32,6 @@
 
   </style>
 
-
   <script type="importmap">
   {
     "imports": {
@@ -132,14 +131,6 @@ renderer.outputColorSpace =
 renderer.toneMapping =
   THREE.ACESFilmicToneMapping;
 
-
-/*
-  Overall exposure.
-
-  Lower than previous version
-  because we now have actual
-  soft illumination.
-*/
 
 renderer.toneMappingExposure =
   1.15;
@@ -300,12 +291,8 @@ textureLoader.load(
 
 
           /*
-            IMPORTANT:
-
-            This ONLY changes
-            visible background.
-
-            Keep close to 1.
+            Visible galaxy brightness.
+            Does NOT control model lighting.
           */
 
           brightness: {
@@ -323,7 +310,6 @@ textureLoader.load(
 
 
           void main() {
-
 
             vUv =
               uv;
@@ -404,10 +390,6 @@ textureLoader.load(
       );
 
 
-    /*
-      Visible galaxy orientation.
-    */
-
     galaxySphere.rotation.y =
       THREE.MathUtils.degToRad(
         0
@@ -477,18 +459,16 @@ textureLoader.load(
 
 
     /*
-      Reflection contribution.
-
-      This controls reflections,
-      NOT the visible galaxy.
+      UPDATED:
+      Environment intensity = 3
     */
 
     scene.environmentIntensity =
-      10;
+      3;
 
 
     /*
-      Sketchfab orientation.
+      Sketchfab environment orientation
     */
 
     scene.environmentRotation.y =
@@ -507,20 +487,8 @@ textureLoader.load(
 
 
 /* ==================================================
-   DIFFUSE FILL
-
-   This is what actually fixes
-   the black sphere problem.
+   SOFT DIFFUSE FILL
 ================================================== */
-
-
-/*
-  Neutral ambient fill.
-
-  This illuminates the whole
-  surface evenly enough that
-  black materials retain detail.
-*/
 
 const ambientLight =
   new THREE.AmbientLight(
@@ -536,16 +504,6 @@ scene.add(
   ambientLight
 );
 
-
-/*
-  Hemisphere fill.
-
-  Warm upper hemisphere +
-  cool dark lower hemisphere.
-
-  Gives the sphere a soft
-  gradient instead of flat fill.
-*/
 
 const hemisphereLight =
   new THREE.HemisphereLight(
@@ -565,12 +523,7 @@ scene.add(
 
 
 /* ==================================================
-   LARGE SOFT AREA LIGHT #1
-
-   Warm key light.
-
-   Large physical size =
-   broad / soft highlight.
+   WARM AREA LIGHT
 ================================================== */
 
 const warmAreaLight =
@@ -615,13 +568,7 @@ scene.add(
 
 
 /* ==================================================
-   LARGE SOFT AREA LIGHT #2
-
-   Cool blue rim / fill.
-
-   This recreates the blue
-   reflections visible in the
-   original Sketchfab look.
+   BLUE AREA LIGHT
 ================================================== */
 
 const blueAreaLight =
@@ -694,7 +641,7 @@ loader.load(
 
 
     /* ==============================================
-       MATERIAL SETTINGS
+       MATERIALS
     ============================================== */
 
     model.traverse(
@@ -727,24 +674,12 @@ loader.load(
           function(material) {
 
 
-            /*
-              Camera is inside
-              the structure.
-            */
-
             material.side =
               THREE.DoubleSide;
 
 
             /*
-              IMPORTANT:
-
-              Don't force everything
-              to roughness = 0.
-
-              Preserve original material
-              while preventing perfect
-              mirror surfaces.
+              Keep some diffuse softness.
             */
 
             if (
@@ -767,7 +702,7 @@ loader.load(
 
 
             /*
-              Environment reflections.
+              Material reflection strength.
             */
 
             if (
@@ -783,9 +718,7 @@ loader.load(
 
 
             /*
-              Preserve GLB clearcoat.
-
-              Only soften it slightly.
+              Preserve and soften clearcoat.
             */
 
             if (
@@ -869,30 +802,38 @@ loader.load(
 
 
     /* ==============================================
-       CAMERA
+       NEW CAMERA POSITION
     ============================================== */
 
     camera.position.set(
 
-      15.171516053292628,
+      -6.281442836548245,
 
-      10.454050081356264,
+      -0.6146532170676694,
 
-      26.37052839095844
+      -15.951038145425533
 
     );
 
+
+    /* ==============================================
+       NEW CAMERA TARGET
+    ============================================== */
 
     controls.target.set(
 
-      -19.08847540973339,
+      6.12541642859908,
 
-      -14.854545050438084,
+      -1.5863933753734871,
 
-      -4.799034101529445
+      -0.7059017212859313
 
     );
 
+
+    /* ==============================================
+       FOV
+    ============================================== */
 
     camera.fov =
       45;
@@ -952,7 +893,7 @@ loader.load(
 
 
       /*
-        Animation remains 0.1×
+        KEEP ANIMATION AT 0.1x
       */
 
       action.timeScale =
@@ -1170,13 +1111,6 @@ function animate() {
 
   }
 
-
-  /*
-    Galaxy follows camera position.
-
-    It behaves like infinitely
-    distant space.
-  */
 
   if (
     galaxySphere
