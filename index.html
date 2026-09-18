@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
   <meta charset="UTF-8">
 
   <meta
@@ -12,6 +13,7 @@
   <title>3D Viewer</title>
 
   <style>
+
     html,
     body {
       margin: 0;
@@ -27,7 +29,9 @@
       width: 100%;
       height: 100%;
     }
+
   </style>
+
 
   <script type="importmap">
   {
@@ -43,6 +47,7 @@
 
 <body>
 
+
 <script type="module">
 
 import * as THREE from 'three';
@@ -54,49 +59,77 @@ import { OrbitControls } from
   'three/addons/controls/OrbitControls.js';
 
 
-/* ========================================
+
+/* ==================================================
    SCENE
-======================================== */
+================================================== */
 
 const scene =
   new THREE.Scene();
 
 
-/* ========================================
+/*
+  Keep Scene background black.
+
+  Galaxy will be rendered with
+  a separate sphere instead.
+*/
+
+scene.background =
+  new THREE.Color(0x000000);
+
+
+
+/* ==================================================
    CAMERA
-======================================== */
+================================================== */
 
 const camera =
   new THREE.PerspectiveCamera(
+
     45,
-    window.innerWidth / window.innerHeight,
+
+    window.innerWidth /
+    window.innerHeight,
+
     0.001,
+
     10000
+
   );
 
 
-/* ========================================
+
+/* ==================================================
    RENDERER
-======================================== */
+================================================== */
 
 const renderer =
   new THREE.WebGLRenderer({
+
     antialias: true,
+
     alpha: false
+
   });
 
 
 renderer.setPixelRatio(
+
   Math.min(
     window.devicePixelRatio,
     2
   )
+
 );
 
 
 renderer.setSize(
+
   window.innerWidth,
+
   window.innerHeight
+
 );
 
 
@@ -109,12 +142,14 @@ renderer.toneMapping =
 
 
 /*
-  Slightly brighter than before,
-  but still keep deep blacks.
+  Slightly brighter model.
+
+  This affects the 3D model,
+  but NOT the galaxy background sphere.
 */
 
 renderer.toneMappingExposure =
-  1.25;
+  1.35;
 
 
 document.body.appendChild(
@@ -122,12 +157,333 @@ document.body.appendChild(
 );
 
 
-/* ========================================
-   PMREM
 
-   Makes the environment behave
-   more naturally with PBR materials.
-======================================== */
+/* ==================================================
+   CONTROLS
+================================================== */
+
+const controls =
+  new OrbitControls(
+
+    camera,
+
+    renderer.domElement
+
+  );
+
+
+controls.enableDamping =
+  true;
+
+
+controls.dampingFactor =
+  0.05;
+
+
+controls.enableRotate =
+  true;
+
+
+controls.rotateSpeed =
+  0.7;
+
+
+controls.enableZoom =
+  true;
+
+
+controls.zoomSpeed =
+  0.5;
+
+
+controls.enablePan =
+  true;
+
+
+controls.panSpeed =
+  0.8;
+
+
+
+/* LEFT = ROTATE */
+
+controls.mouseButtons.LEFT =
+  THREE.MOUSE.ROTATE;
+
+
+/* MIDDLE = PAN */
+
+controls.mouseButtons.MIDDLE =
+  THREE.MOUSE.PAN;
+
+
+/* RIGHT = PAN */
+
+controls.mouseButtons.RIGHT =
+  THREE.MOUSE.PAN;
+
+
+
+controls.minAzimuthAngle =
+  -Infinity;
+
+
+controls.maxAzimuthAngle =
+  Infinity;
+
+
+controls.minPolarAngle =
+  0.15;
+
+
+controls.maxPolarAngle =
+  Math.PI - 0.15;
+
+
+
+/* ==================================================
+   GALAXY BACKGROUND
+
+   IMPORTANT:
+
+   Galaxy is now independent from
+   model lighting.
+
+   This means we can make the galaxy
+   clearly visible without overexposing
+   the model.
+================================================== */
+
+const textureLoader =
+  new THREE.TextureLoader();
+
+
+let galaxySphere =
+  null;
+
+
+textureLoader.load(
+
+  './Space_4.jpg',
+
+
+  function(texture) {
+
+
+    texture.colorSpace =
+      THREE.SRGBColorSpace;
+
+
+    /*
+      Improve filtering.
+    */
+
+    texture.minFilter =
+      THREE.LinearFilter;
+
+
+    texture.magFilter =
+      THREE.LinearFilter;
+
+
+    /*
+      Huge sphere surrounding camera.
+    */
+
+    const galaxyGeometry =
+      new THREE.SphereGeometry(
+
+        500,
+
+        64,
+
+        32
+
+      );
+
+
+    /*
+      Custom shader.
+
+      This allows us to boost
+      ONLY the galaxy brightness.
+    */
+
+    const galaxyMaterial =
+      new THREE.ShaderMaterial({
+
+
+        side:
+          THREE.BackSide,
+
+
+        depthWrite:
+          false,
+
+
+        depthTest:
+          false,
+
+
+        toneMapped:
+          false,
+
+
+        uniforms: {
+
+          galaxyTexture: {
+
+            value: texture
+
+          },
+
+
+          /*
+            GALAXY BRIGHTNESS
+
+            Increase this if you want
+            the Milky Way brighter.
+          */
+
+          brightness: {
+
+            value: 1.85
+
+          }
+
+        },
+
+
+        vertexShader: `
+
+          varying vec2 vUv;
+
+          void main() {
+
+            vUv = uv;
+
+            gl_Position =
+              projectionMatrix *
+              modelViewMatrix *
+              vec4(
+                position,
+                1.0
+              );
+
+          }
+
+        `,
+
+
+        fragmentShader: `
+
+          uniform sampler2D galaxyTexture;
+
+          uniform float brightness;
+
+          varying vec2 vUv;
+
+
+          void main() {
+
+            vec4 tex =
+              texture2D(
+                galaxyTexture,
+                vUv
+              );
+
+
+            /*
+              Lift dark galaxy areas
+              without blowing out stars.
+            */
+
+            vec3 color =
+              tex.rgb * brightness;
+
+
+            color =
+              pow(
+                color,
+                vec3(0.85)
+              );
+
+
+            gl_FragColor =
+              vec4(
+                color,
+                1.0
+              );
+
+          }
+
+        `
+
+      });
+
+
+    galaxySphere =
+      new THREE.Mesh(
+
+        galaxyGeometry,
+
+        galaxyMaterial
+
+      );
+
+
+    /*
+      Rotate visible galaxy.
+
+      Change this number if you want
+      another part of the Milky Way
+      behind the model.
+    */
+
+    galaxySphere.rotation.y =
+      THREE.MathUtils.degToRad(
+        0
+      );
+
+
+    galaxySphere.renderOrder =
+      -1000;
+
+
+    scene.add(
+      galaxySphere
+    );
+
+
+    console.log(
+      'Galaxy background loaded'
+    );
+
+  },
+
+
+  undefined,
+
+
+  function(error) {
+
+    console.error(
+      'Galaxy background error:',
+      error
+    );
+
+  }
+
+);
+
+
+
+/* ==================================================
+   ENVIRONMENT REFLECTION
+
+   Separate copy of Space_4
+   controls PBR reflections.
+================================================== */
 
 const pmremGenerator =
   new THREE.PMREMGenerator(
@@ -135,23 +491,17 @@ const pmremGenerator =
   );
 
 
-pmremGenerator.compileEquirectangularShader();
-
-
-/* ========================================
-   ENVIRONMENT
-   Space_4.jpg
-======================================== */
-
-const textureLoader =
-  new THREE.TextureLoader();
+pmremGenerator
+  .compileEquirectangularShader();
 
 
 textureLoader.load(
 
   './Space_4.jpg',
 
+
   function(texture) {
+
 
     texture.mapping =
       THREE.EquirectangularReflectionMapping;
@@ -160,39 +510,6 @@ textureLoader.load(
     texture.colorSpace =
       THREE.SRGBColorSpace;
 
-
-    /* ====================================
-       VISIBLE GALAXY BACKGROUND
-
-       Keep this at 0° so the galaxy
-       remains visible in the composition.
-    ==================================== */
-
-    scene.background =
-      texture;
-
-
-    scene.backgroundRotation.y =
-      THREE.MathUtils.degToRad(
-        0
-      );
-
-
-    /*
-      Brighten visible background
-      independently from reflections.
-    */
-
-    scene.backgroundIntensity =
-      1.35;
-
-
-    /* ====================================
-       PBR ENVIRONMENT
-
-       Use PMREM for softer,
-       more natural reflection.
-    ==================================== */
 
     const envMap =
       pmremGenerator
@@ -207,18 +524,18 @@ textureLoader.load(
 
 
     /*
-      Reflection / lighting intensity.
+      Reflection / IBL strength.
+
+      Keep moderate because JPG
+      is not true HDR.
     */
 
     scene.environmentIntensity =
-      1.15;
+      1.35;
 
 
     /*
-      Sketchfab environment orientation.
-
-      We rotate LIGHTING separately
-      from the visible galaxy.
+      Sketchfab environment direction.
     */
 
     scene.environmentRotation.y =
@@ -228,20 +545,7 @@ textureLoader.load(
 
 
     console.log(
-      'Space_4 environment loaded'
-    );
-
-  },
-
-
-  undefined,
-
-
-  function(error) {
-
-    console.error(
-      'Space_4.jpg loading error:',
-      error
+      'PBR environment loaded'
     );
 
   }
@@ -249,116 +553,29 @@ textureLoader.load(
 );
 
 
-/* ========================================
-   CONTROLS
-======================================== */
 
-const controls =
-  new OrbitControls(
-    camera,
-    renderer.domElement
-  );
+/* ==================================================
+   SOFT FILL LIGHTING
 
+   JPG environment is not HDR,
+   so it cannot light dark surfaces
+   strongly enough by itself.
 
-controls.enableDamping =
-  true;
-
-
-controls.dampingFactor =
-  0.05;
-
-
-/* Rotate */
-
-controls.enableRotate =
-  true;
-
-
-controls.rotateSpeed =
-  0.7;
-
-
-/* Zoom */
-
-controls.enableZoom =
-  true;
-
-
-controls.zoomSpeed =
-  0.5;
-
-
-/* Pan */
-
-controls.enablePan =
-  true;
-
-
-controls.panSpeed =
-  0.8;
-
-
-/* ========================================
-   MOUSE MAPPING
-======================================== */
-
-
-/* Left drag = rotate */
-
-controls.mouseButtons.LEFT =
-  THREE.MOUSE.ROTATE;
-
-
-/* Middle mouse drag = pan */
-
-controls.mouseButtons.MIDDLE =
-  THREE.MOUSE.PAN;
-
-
-/* Right drag = pan */
-
-controls.mouseButtons.RIGHT =
-  THREE.MOUSE.PAN;
-
-
-/* Full horizontal rotation */
-
-controls.minAzimuthAngle =
-  -Infinity;
-
-
-controls.maxAzimuthAngle =
-  Infinity;
-
-
-/* Vertical range */
-
-controls.minPolarAngle =
-  0.15;
-
-
-controls.maxPolarAngle =
-  Math.PI - 0.15;
-
-
-/* ========================================
-   SOFT WARM FILL LIGHTING
-
-   No directional lights.
-   No hard specular light dots.
-======================================== */
+   These lights create diffuse fill
+   without visible hard light spots.
+================================================== */
 
 
 /*
-  Very soft warm ambient fill.
+  Neutral-warm ambient fill.
 */
 
 const ambientLight =
   new THREE.AmbientLight(
 
-    0xffd6a0,
+    0xffe4c4,
 
-    0.13
+    0.34
 
   );
 
@@ -368,21 +585,21 @@ scene.add(
 );
 
 
-/*
-  Gentle warm hemisphere fill.
 
-  Gives softer diffuse shading
-  without looking like a spotlight.
+/*
+  Large soft sky / ground difference.
+
+  Still no directional spotlight.
 */
 
 const hemiLight =
   new THREE.HemisphereLight(
 
-    0xffd7a3,
+    0xffd8a6,
 
-    0x08090f,
+    0x171722,
 
-    0.20
+    0.48
 
   );
 
@@ -392,9 +609,10 @@ scene.add(
 );
 
 
-/* ========================================
-   LOAD MODEL
-======================================== */
+
+/* ==================================================
+   MODEL
+================================================== */
 
 const loader =
   new GLTFLoader();
@@ -411,6 +629,7 @@ loader.load(
 
   function(gltf) {
 
+
     const model =
       gltf.scene;
 
@@ -420,108 +639,150 @@ loader.load(
     );
 
 
-    /* ====================================
-       MATERIAL SETTINGS
-    ==================================== */
+
+    /* ==============================================
+       MATERIALS
+    ============================================== */
 
     model.traverse(
+
       function(child) {
 
+
         if (
-          child.isMesh
+          !child.isMesh
         ) {
 
-          const materials =
-            Array.isArray(
-              child.material
-            )
-
-              ? child.material
-
-              : [child.material];
-
-
-          materials.forEach(
-            function(material) {
-
-
-              /* ==========================
-                 DOUBLE SIDED
-              ========================== */
-
-              material.side =
-                THREE.DoubleSide;
-
-
-              /* ==========================
-                 ROUGHNESS
-
-                 Softer than the previous
-                 mirror-like roughness 0.
-              ========================== */
-
-              if (
-                'roughness'
-                in material
-              ) {
-
-                material.roughness =
-                  0.32;
-
-              }
-
-
-              /* ==========================
-                 ENVIRONMENT REFLECTION
-              ========================== */
-
-              if (
-                'envMapIntensity'
-                in material
-              ) {
-
-                material.envMapIntensity =
-                  1.15;
-
-              }
-
-
-              /* ==========================
-                 CLEAR COAT
-
-                 Keep glossy coating,
-                 but not pure mirror.
-              ========================== */
-
-              if (
-                material.isMeshPhysicalMaterial
-              ) {
-
-                material.clearcoat =
-                  0.55;
-
-
-                material.clearcoatRoughness =
-                  0.18;
-
-              }
-
-
-              material.needsUpdate =
-                true;
-
-            }
-          );
+          return;
 
         }
 
+
+        const materials =
+
+          Array.isArray(
+            child.material
+          )
+
+          ? child.material
+
+          : [child.material];
+
+
+
+        materials.forEach(
+
+          function(material) {
+
+
+            /*
+              Camera is inside,
+              render both faces.
+            */
+
+            material.side =
+              THREE.DoubleSide;
+
+
+
+            /*
+              DO NOT replace every material's
+              original roughness anymore.
+
+              Only stop extremely mirror-like
+              surfaces from reaching zero.
+            */
+
+            if (
+              'roughness'
+              in material
+            ) {
+
+              material.roughness =
+                Math.max(
+
+                  material.roughness,
+
+                  0.20
+
+                );
+
+            }
+
+
+
+            /*
+              Moderate reflections.
+            */
+
+            if (
+              'envMapIntensity'
+              in material
+            ) {
+
+              material.envMapIntensity =
+                1.25;
+
+            }
+
+
+
+            /*
+              Preserve physical material,
+              but soften clearcoat.
+
+              No more pure mirror clearcoat.
+            */
+
+            if (
+              material.isMeshPhysicalMaterial
+            ) {
+
+
+              if (
+                material.clearcoat > 0
+              ) {
+
+                material.clearcoat =
+                  Math.min(
+
+                    material.clearcoat,
+
+                    0.65
+
+                  );
+
+
+                material.clearcoatRoughness =
+                  Math.max(
+
+                    material.clearcoatRoughness,
+
+                    0.16
+
+                  );
+
+              }
+
+            }
+
+
+            material.needsUpdate =
+              true;
+
+          }
+
+        );
+
       }
+
     );
 
 
-    /* ====================================
+
+    /* ==============================================
        MODEL SIZE
-    ==================================== */
+    ============================================== */
 
     const box =
       new THREE.Box3()
@@ -538,15 +799,20 @@ loader.load(
 
     const maxDim =
       Math.max(
+
         size.x,
+
         size.y,
+
         size.z
+
       );
 
 
-    /* ====================================
+
+    /* ==============================================
        FINAL CAMERA
-    ==================================== */
+    ============================================== */
 
     camera.position.set(
 
@@ -574,14 +840,14 @@ loader.load(
       45;
 
 
-    /* ====================================
-       CAMERA CLIPPING
-    ==================================== */
 
     camera.near =
       Math.max(
+
         maxDim * 0.0001,
+
         0.0001
+
       );
 
 
@@ -595,13 +861,15 @@ loader.load(
     controls.update();
 
 
-    /* ====================================
+
+    /* ==============================================
        ANIMATION
-    ==================================== */
+    ============================================== */
 
     if (
       gltf.animations.length > 0
     ) {
+
 
       mixer =
         new THREE.AnimationMixer(
@@ -616,13 +884,16 @@ loader.load(
 
 
       action.setLoop(
+
         THREE.LoopRepeat,
+
         Infinity
+
       );
 
 
       /*
-        Keep animation at 0.1×
+        KEEP 0.1×
       */
 
       action.timeScale =
@@ -647,17 +918,22 @@ loader.load(
 
   function(xhr) {
 
+
     if (
       xhr.total
     ) {
 
+
       console.log(
+
         (
           xhr.loaded /
           xhr.total *
           100
         ).toFixed(0)
+
         + '% loaded'
+
       );
 
     }
@@ -666,6 +942,7 @@ loader.load(
 
 
   function(error) {
+
 
     console.error(
       'GLB loading error:',
@@ -677,10 +954,11 @@ loader.load(
 );
 
 
-/* ========================================
+
+/* ==================================================
    CAMERA DEBUG
    PRESS P
-======================================== */
+================================================== */
 
 const cameraInfo =
   document.createElement(
@@ -691,38 +969,50 @@ const cameraInfo =
 cameraInfo.style.position =
   'fixed';
 
+
 cameraInfo.style.top =
   '20px';
+
 
 cameraInfo.style.left =
   '20px';
 
+
 cameraInfo.style.zIndex =
   '9999';
+
 
 cameraInfo.style.padding =
   '12px 16px';
 
+
 cameraInfo.style.background =
   'rgba(0,0,0,0.8)';
+
 
 cameraInfo.style.color =
   'white';
 
+
 cameraInfo.style.fontFamily =
   'monospace';
+
 
 cameraInfo.style.fontSize =
   '13px';
 
+
 cameraInfo.style.lineHeight =
   '1.6';
+
 
 cameraInfo.style.borderRadius =
   '6px';
 
+
 cameraInfo.style.display =
   'none';
+
 
 cameraInfo.style.pointerEvents =
   'none';
@@ -733,14 +1023,19 @@ document.body.appendChild(
 );
 
 
+
 window.addEventListener(
+
   'keydown',
+
   function(event) {
+
 
     if (
       event.key.toLowerCase()
       === 'p'
     ) {
+
 
       const text =
 `CAMERA POSITION:
@@ -781,18 +1076,21 @@ ${camera.fov}`;
     }
 
   }
+
 );
 
 
-/* ========================================
-   ANIMATION LOOP
-======================================== */
+
+/* ==================================================
+   ANIMATION
+================================================== */
 
 const clock =
   new THREE.Clock();
 
 
 function animate() {
+
 
   requestAnimationFrame(
     animate
@@ -814,12 +1112,33 @@ function animate() {
   }
 
 
+  /*
+    Keep galaxy centered on camera.
+
+    This makes it behave like
+    infinitely distant space.
+  */
+
+  if (
+    galaxySphere
+  ) {
+
+    galaxySphere.position.copy(
+      camera.position
+    );
+
+  }
+
+
   controls.update();
 
 
   renderer.render(
+
     scene,
+
     camera
+
   );
 
 }
@@ -828,15 +1147,20 @@ function animate() {
 animate();
 
 
-/* ========================================
-   RESPONSIVE
-======================================== */
+
+/* ==================================================
+   RESIZE
+================================================== */
 
 window.addEventListener(
+
   'resize',
+
   function() {
 
+
     camera.aspect =
+
       window.innerWidth /
       window.innerHeight;
 
@@ -845,11 +1169,15 @@ window.addEventListener(
 
 
     renderer.setSize(
+
       window.innerWidth,
+
       window.innerHeight
+
     );
 
   }
+
 );
 
 
