@@ -109,6 +109,10 @@ renderer.toneMapping =
   THREE.ACESFilmicToneMapping;
 
 
+/*
+  Overall brightness
+*/
+
 renderer.toneMappingExposure =
   1.1;
 
@@ -119,7 +123,7 @@ document.body.appendChild(
 
 
 /* ========================================
-   SPACE ENVIRONMENT
+   ENVIRONMENT
    Space_4.jpg
 ======================================== */
 
@@ -147,23 +151,32 @@ textureLoader.load(
       texture;
 
 
-    /* PBR reflections */
+    /* PBR environment */
 
     scene.environment =
       texture;
 
 
-    /* Reflection strength */
+    /*
+      Slightly brighter
+      environment contribution
+    */
 
     scene.environmentIntensity =
-      1.25;
+      1.35;
 
 
-    /* Environment orientation */
+    /*
+      Background orientation
+    */
 
     scene.backgroundRotation.y =
       THREE.MathUtils.degToRad(0);
 
+
+    /*
+      Reflection orientation
+    */
 
     scene.environmentRotation.y =
       THREE.MathUtils.degToRad(0);
@@ -212,7 +225,7 @@ controls.dampingFactor =
   0.05;
 
 
-/* Left drag = rotate */
+/* Rotation */
 
 controls.enableRotate =
   true;
@@ -248,7 +261,7 @@ controls.panSpeed =
 
 
 /*
-  LEFT DRAG
+  LEFT MOUSE DRAG
   = ROTATE
 */
 
@@ -267,7 +280,7 @@ controls.mouseButtons.MIDDLE =
 
 
 /*
-  RIGHT DRAG
+  RIGHT MOUSE DRAG
   = PAN
 */
 
@@ -275,7 +288,7 @@ controls.mouseButtons.RIGHT =
   THREE.MOUSE.PAN;
 
 
-/* Horizontal rotation */
+/* Full horizontal rotation */
 
 controls.minAzimuthAngle =
   -Infinity;
@@ -301,7 +314,10 @@ controls.maxPolarAngle =
 
 
 /*
-  Soft warm ambient fill
+  Warm ambient fill.
+
+  Slightly brighter than
+  the previous version.
 */
 
 const ambientLight =
@@ -309,7 +325,7 @@ const ambientLight =
 
     0xffc77a,
 
-    0.16
+    0.22
 
   );
 
@@ -320,10 +336,16 @@ scene.add(
 
 
 /*
-  Soft warm hemisphere light
+  Warm hemisphere fill.
 
-  Top = warm gold
-  Bottom = dark warm brown
+  Top:
+  warm golden light
+
+  Bottom:
+  deep warm shadow
+
+  No hard directional lights,
+  so we avoid obvious light dots.
 */
 
 const hemiLight =
@@ -333,7 +355,7 @@ const hemiLight =
 
     0x120906,
 
-    0.28
+    0.38
 
   );
 
@@ -397,7 +419,10 @@ loader.load(
 
 
               /*
-                Render both sides
+                Render both sides.
+
+                Important because camera
+                is inside the structure.
               */
 
               material.side =
@@ -406,6 +431,7 @@ loader.load(
 
               /*
                 Environment reflection
+                strength
               */
 
               if (
@@ -414,7 +440,7 @@ loader.load(
               ) {
 
                 material.envMapIntensity =
-                  1.2;
+                  1.3;
 
               }
 
@@ -457,39 +483,37 @@ loader.load(
 
 
     /* ====================================
-       CAMERA POSITION
-       KEEPING YOUR LATEST VALUES
+       FINAL CAMERA POSITION
     ==================================== */
 
     camera.position.set(
 
-      6.5018498160421885,
+      15.171516053292628,
 
-      5.191111610794252,
+      10.454050081356264,
 
-      16.1111212785211205
+      26.37052839095844
 
     );
 
 
     /* ====================================
-       CAMERA TARGET
-       KEEPING YOUR LATEST VALUES
+       FINAL CAMERA TARGET
     ==================================== */
 
     controls.target.set(
 
-      -18.534608252540206,
+      -19.08847540973339,
 
-      -13.303860329748414,
+      -14.854545050438084,
 
-      -6.66691838332252
+      -4.799034101529445
 
     );
 
 
     /* ====================================
-       FOV = 45
+       FIELD OF VIEW
     ==================================== */
 
     camera.fov =
@@ -518,7 +542,7 @@ loader.load(
 
 
     /* ====================================
-       ANIMATION
+       BLENDER ANIMATION
     ==================================== */
 
     if (
@@ -537,6 +561,10 @@ loader.load(
         );
 
 
+      /*
+        Infinite loop
+      */
+
       action.setLoop(
         THREE.LoopRepeat,
         Infinity
@@ -544,7 +572,8 @@ loader.load(
 
 
       /*
-        KEEP ANIMATION AT 0.1x
+        IMPORTANT:
+        Animation playback speed = 0.1x
       */
 
       action.timeScale =
@@ -567,6 +596,10 @@ loader.load(
   },
 
 
+  /* ======================================
+     LOAD PROGRESS
+  ====================================== */
+
   function(xhr) {
 
     if (
@@ -586,6 +619,10 @@ loader.load(
 
   },
 
+
+  /* ======================================
+     LOAD ERROR
+  ====================================== */
 
   function(error) {
 
@@ -654,6 +691,10 @@ document.body.appendChild(
   cameraInfo
 );
 
+
+/* ========================================
+   PRESS P
+======================================== */
 
 window.addEventListener(
   'keydown',
@@ -725,6 +766,10 @@ function animate() {
     clock.getDelta();
 
 
+  /*
+    Update Blender animation
+  */
+
   if (
     mixer
   ) {
@@ -736,8 +781,16 @@ function animate() {
   }
 
 
+  /*
+    Update camera controls
+  */
+
   controls.update();
 
+
+  /*
+    Render
+  */
 
   renderer.render(
     scene,
