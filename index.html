@@ -109,10 +109,6 @@ renderer.toneMapping =
   THREE.ACESFilmicToneMapping;
 
 
-/*
-  Keep deep blacks
-*/
-
 renderer.toneMappingExposure =
   1.1;
 
@@ -124,7 +120,7 @@ document.body.appendChild(
 
 /* ========================================
    SPACE ENVIRONMENT
-   space_2.jpg
+   Space_4.jpg
 ======================================== */
 
 const textureLoader =
@@ -133,7 +129,7 @@ const textureLoader =
 
 textureLoader.load(
 
-  './space_2.jpg',
+  './Space_4.jpg',
 
   function(texture) {
 
@@ -151,23 +147,19 @@ textureLoader.load(
       texture;
 
 
-    /* PBR environment */
+    /* PBR reflections */
 
     scene.environment =
       texture;
 
 
-    /*
-      Environment reflection strength
-    */
+    /* Reflection strength */
 
     scene.environmentIntensity =
       1.25;
 
 
-    /*
-      Environment rotation
-    */
+    /* Environment orientation */
 
     scene.backgroundRotation.y =
       THREE.MathUtils.degToRad(0);
@@ -178,7 +170,7 @@ textureLoader.load(
 
 
     console.log(
-      'space_2 environment loaded'
+      'Space_4.jpg environment loaded'
     );
 
   },
@@ -190,7 +182,7 @@ textureLoader.load(
   function(error) {
 
     console.error(
-      'Environment loading error:',
+      'Space_4.jpg loading error:',
       error
     );
 
@@ -210,7 +202,7 @@ const controls =
   );
 
 
-/* Smooth */
+/* Smooth movement */
 
 controls.enableDamping =
   true;
@@ -220,7 +212,7 @@ controls.dampingFactor =
   0.05;
 
 
-/* Rotation */
+/* Left drag = rotate */
 
 controls.enableRotate =
   true;
@@ -230,7 +222,7 @@ controls.rotateSpeed =
   0.7;
 
 
-/* Mouse wheel scroll = zoom */
+/* Wheel scroll = zoom */
 
 controls.enableZoom =
   true;
@@ -309,10 +301,7 @@ controls.maxPolarAngle =
 
 
 /*
-  Very subtle warm ambient fill
-
-  No hard directional lights,
-  so we avoid obvious light dots.
+  Soft warm ambient fill
 */
 
 const ambientLight =
@@ -333,14 +322,8 @@ scene.add(
 /*
   Soft warm hemisphere light
 
-  Top:
-  warm golden / cream
-
-  Bottom:
-  very dark warm brown
-
-  This creates a softer
-  gold / bronze feeling.
+  Top = warm gold
+  Bottom = dark warm brown
 */
 
 const hemiLight =
@@ -414,8 +397,7 @@ loader.load(
 
 
               /*
-                Camera is inside,
-                so render both sides.
+                Render both sides
               */
 
               material.side =
@@ -423,7 +405,7 @@ loader.load(
 
 
               /*
-                Environment reflections
+                Environment reflection
               */
 
               if (
@@ -475,40 +457,40 @@ loader.load(
 
 
     /* ====================================
-       CURRENT CAMERA POSITION
-
-       Keep your latest position for now.
-       Because FOV changed to 45,
-       you will probably want to
-       reposition this again.
+       CAMERA POSITION
+       KEEPING YOUR LATEST VALUES
     ==================================== */
 
     camera.position.set(
 
-      9.086131739355125,
+      6.5018498160421885,
 
-      5.890803518806088,
+      5.191111610794252,
 
-      18.948786602224622
+      16.1111212785211205
 
     );
 
+
+    /* ====================================
+       CAMERA TARGET
+       KEEPING YOUR LATEST VALUES
+    ==================================== */
 
     controls.target.set(
 
-      -18.90314037413767,
+      -18.534608252540206,
 
-      -14.336285664474662,
+      -13.303860329748414,
 
-      -5.384827484565529
+      -6.66691838332252
 
     );
 
 
-    /*
-      FOV = 45
-      Matching your Sketchfab setting.
-    */
+    /* ====================================
+       FOV = 45
+    ==================================== */
 
     camera.fov =
       45;
@@ -562,7 +544,6 @@ loader.load(
 
 
       /*
-        IMPORTANT:
         KEEP ANIMATION AT 0.1x
       */
 
