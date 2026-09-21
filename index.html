@@ -473,17 +473,19 @@ const textureLoader =
    3. inside-facing sphere material
 ================================================== */
 
-let galaxyTexture =
-  null;
+let galaxyTexture = null;
+let galaxyEnvTexture = null;
+let galaxySphere = null;
+let loadedModel = null;
 
-let galaxyEnvTexture =
-  null;
+/*
+  Camera boundary:
+  keeps the camera inside the
+  large enclosing sphere.
+*/
 
-let galaxySphere =
-  null;
-
-let loadedModel =
-  null;
+let enclosingSphereCenter = null;
+let enclosingSphereRadius = null;
 
 
 /* ==================================================
@@ -1085,15 +1087,64 @@ function applyModelMaterials(
 
 
   if (
-    largestMesh
-  ) {
+  largestMesh
+) {
 
-    console.log(
-      'ENCLOSING SPHERE DETECTED:',
-      largestMesh.name
+  console.log(
+    'ENCLOSING SPHERE DETECTED:',
+    largestMesh.name
+  );
+
+
+  /* ==================================================
+     CALCULATE CAMERA BOUNDARY
+  ================================================== */
+
+  const sphereBox =
+    new THREE.Box3()
+      .setFromObject(
+        largestMesh
+      );
+
+
+  enclosingSphereCenter =
+    sphereBox.getCenter(
+      new THREE.Vector3()
     );
 
-  }
+
+  const sphereSize =
+    sphereBox.getSize(
+      new THREE.Vector3()
+    );
+
+
+  /*
+    Use the smallest dimension so the camera
+    stays safely inside even if the enclosing
+    mesh isn't a mathematically perfect sphere.
+  */
+
+  enclosingSphereRadius =
+    Math.min(
+      sphereSize.x,
+      sphereSize.y,
+      sphereSize.z
+    ) * 0.5;
+
+
+  console.log(
+    'ENCLOSING SPHERE CENTER:',
+    enclosingSphereCenter
+  );
+
+
+  console.log(
+    'ENCLOSING SPHERE RADIUS:',
+    enclosingSphereRadius
+  );
+
+}
 
 
   model.traverse(
@@ -1904,6 +1955,10 @@ function animate() {
     clock.getDelta();
 
 
+  /* ==================================================
+     MODEL ANIMATION
+  ================================================== */
+
   if (
     mixer
   ) {
@@ -1915,10 +1970,12 @@ function animate() {
   }
 
 
-  /*
-    Keep external galaxy sphere
-    centered around camera.
-  */
+  /* ==================================================
+     GALAXY BACKGROUND
+
+     Keep the external galaxy sphere centered
+     around the camera.
+  ================================================== */
 
   if (
     galaxySphere
@@ -1931,8 +1988,85 @@ function animate() {
   }
 
 
+  /* ==================================================
+     ORBIT CONTROLS
+  ================================================== */
+
   controls.update();
 
+
+  /* ==================================================
+     CAMERA BOUNDARY
+
+     Prevent zoom / pan from moving the camera
+     outside the large enclosing sphere.
+  ================================================== */
+
+  if (
+    enclosingSphereCenter &&
+    enclosingSphereRadius
+  ) {
+
+
+    const offset =
+      camera.position
+        .clone()
+        .sub(
+          enclosingSphereCenter
+        );
+
+
+    const distance =
+      offset.length();
+
+
+    /*
+      92% of sphere radius.
+
+      This leaves an 8% safety margin
+      between the camera and sphere wall.
+
+      Increase to 0.95 / 0.96 if you want
+      the camera to get closer to the wall.
+
+      Decrease to 0.90 / 0.88 if you want
+      more protection from clipping.
+    */
+
+    const maxRadius =
+      enclosingSphereRadius *
+      0.92;
+
+
+    if (
+      distance >
+      maxRadius
+    ) {
+
+
+      offset
+        .normalize()
+        .multiplyScalar(
+          maxRadius
+        );
+
+
+      camera.position
+        .copy(
+          enclosingSphereCenter
+        )
+        .add(
+          offset
+        );
+
+    }
+
+  }
+
+
+  /* ==================================================
+     RENDER
+  ================================================== */
 
   composer.render();
 
