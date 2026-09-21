@@ -174,24 +174,14 @@ controls.enablePan =
 controls.panSpeed =
   0.8;
 
-
-/* LEFT = ROTATE */
-
 controls.mouseButtons.LEFT =
   THREE.MOUSE.ROTATE;
-
-
-/* MIDDLE = PAN */
 
 controls.mouseButtons.MIDDLE =
   THREE.MOUSE.PAN;
 
-
-/* RIGHT = PAN */
-
 controls.mouseButtons.RIGHT =
   THREE.MOUSE.PAN;
-
 
 controls.minAzimuthAngle =
   -Infinity;
@@ -256,9 +246,7 @@ const bloomPass =
     ),
 
     0.25,   // strength
-
     0.35,   // radius
-
     0.50    // threshold
 
   );
@@ -411,8 +399,6 @@ const finalShader = {
         ) * sharpness;
 
 
-      /* VIGNETTE */
-
       vec2 p =
         vUv - 0.5;
 
@@ -429,13 +415,14 @@ const finalShader = {
 
       float edge =
         smoothstep(
+
           0.25 +
-          vignetteHardness *
-          0.15,
+          vignetteHardness * 0.15,
 
           0.78,
 
           distanceFromCenter
+
         );
 
 
@@ -478,12 +465,841 @@ const textureLoader =
 
 
 /* ==================================================
-   GALAXY BACKGROUND
+   LOAD GALAXY TEXTURE ONCE
+
+   Used by:
+   1. visible outside background
+   2. PBR environment
+   3. inside-facing sphere material
 ================================================== */
+
+let galaxyTexture =
+  null;
+
+let galaxyEnvTexture =
+  null;
 
 let galaxySphere =
   null;
 
+let loadedModel =
+  null;
+
+
+/* ==================================================
+   CREATE INSIDE SPHERE MATERIAL
+================================================== */
+
+function createInsideGalaxyMaterial(
+  texture
+) {
+
+  return new THREE.ShaderMaterial({
+
+    /*
+      Only render the INNER face
+      of the enclosing sphere.
+    */
+
+    side:
+      THREE.BackSide,
+
+    depthTest:
+      true,
+
+    depthWrite:
+      true,
+
+    transparent:
+      false,
+
+    /*
+      Let the result participate in
+      Reinhard tone mapping.
+    */
+
+    toneMapped:
+      true,
+
+
+    uniforms: {
+
+      galaxyTexture: {
+        value:
+          texture
+      },
+
+
+      /*
+        Main amount of galaxy visible
+        on the sphere interior.
+
+        Recommended starting point = 0.70
+      */
+
+      galaxyStrength: {
+        value:
+          0.70
+      },
+
+
+      /*
+        Controls how dark / black
+        the sphere still feels.
+
+        Higher = darker.
+      */
+
+      darkness: {
+        value:
+          0.38
+      },
+
+
+      /*
+        Additional reflected galaxy layer.
+      */
+
+      reflectionStrength: {
+        value:
+          0.35
+      },
+
+
+      /*
+        Slight midtone lift inside sphere.
+      */
+
+      galaxyGamma: {
+        value:
+          0.88
+      },
+
+
+      /*
+        Match Sketchfab environment
+        orientation.
+      */
+
+      rotationY: {
+        value:
+          THREE.MathUtils.degToRad(
+            133.333
+          )
+      }
+
+    },
+
+
+    vertexShader: `
+
+      varying vec3 vWorldPosition;
+      varying vec3 vWorldNormal;
+
+
+      void main() {
+
+        vec4 worldPosition =
+          modelMatrix *
+          vec4(
+            position,
+            1.0
+          );
+
+
+        vWorldPosition =
+          worldPosition.xyz;
+
+
+        vWorldNormal =
+          normalize(
+            mat3(
+              modelMatrix
+            ) *
+            normal
+          );
+
+
+        gl_Position =
+          projectionMatrix *
+          viewMatrix *
+          worldPosition;
+
+      }
+
+    `,
+
+
+    fragmentShader: `
+
+      #define PI 3.1415926535897932384626433832795
+
+
+      uniform sampler2D galaxyTexture;
+
+      uniform float galaxyStrength;
+
+      uniform float darkness;
+
+      uniform float reflectionStrength;
+
+      uniform float galaxyGamma;
+
+      uniform float rotationY;
+
+
+      varying vec3 vWorldPosition;
+
+      varying vec3 vWorldNormal;
+
+
+      /* ------------------------------------------
+         Rotate direction around Y axis
+      ------------------------------------------ */
+
+      vec3 rotateAroundY(
+        vec3 direction,
+        float angle
+      ) {
+
+        float c =
+          cos(
+            angle
+          );
+
+        float s =
+          sin(
+            angle
+          );
+
+
+        return vec3(
+
+          c * direction.x +
+          s * direction.z,
+
+          direction.y,
+
+          -s * direction.x +
+          c * direction.z
+
+        );
+
+      }
+
+
+      /* ------------------------------------------
+         Direction -> Equirectangular UV
+      ------------------------------------------ */
+
+      vec2 directionToUV(
+        vec3 direction
+      ) {
+
+        direction =
+          normalize(
+            direction
+          );
+
+
+        float longitude =
+          atan(
+            direction.z,
+            direction.x
+          );
+
+
+        float latitude =
+          asin(
+            clamp(
+              direction.y,
+              -1.0,
+              1.0
+            )
+          );
+
+
+        vec2 uv;
+
+
+        uv.x =
+          longitude /
+          (
+            2.0 * PI
+          ) +
+          0.5;
+
+
+        uv.y =
+          latitude /
+          PI +
+          0.5;
+
+
+        return uv;
+
+      }
+
+
+      void main() {
+
+
+        /*
+          Original geometry normal
+          points OUTWARD.
+
+          Camera is inside sphere,
+          so flip it to get inward-facing
+          shading direction.
+        */
+
+        vec3 outwardNormal =
+          normalize(
+            vWorldNormal
+          );
+
+
+        vec3 inwardNormal =
+          -outwardNormal;
+
+
+        /*
+          Direction from fragment
+          toward camera.
+        */
+
+        vec3 viewDir =
+          normalize(
+            cameraPosition -
+            vWorldPosition
+          );
+
+
+        /* ==========================================
+           DIRECT GALAXY LAYER
+
+           Use the sphere direction itself to
+           project the panoramic galaxy onto
+           the interior wall.
+        ========================================== */
+
+        vec3 galaxyDirection =
+          rotateAroundY(
+
+            outwardNormal,
+
+            rotationY
+
+          );
+
+
+        vec2 galaxyUV =
+          directionToUV(
+            galaxyDirection
+          );
+
+
+        vec3 directGalaxy =
+          texture2D(
+
+            galaxyTexture,
+
+            galaxyUV
+
+          ).rgb;
+
+
+        /*
+          Lift nebula / Milky Way midtones.
+        */
+
+        directGalaxy =
+          pow(
+
+            directGalaxy,
+
+            vec3(
+              galaxyGamma
+            )
+
+          );
+
+
+        /* ==========================================
+           REFLECTED GALAXY LAYER
+
+           Gives some of the "environment reflection"
+           quality back to the surface.
+        ========================================== */
+
+        vec3 incident =
+          -viewDir;
+
+
+        vec3 reflectedDirection =
+          reflect(
+
+            incident,
+
+            inwardNormal
+
+          );
+
+
+        reflectedDirection =
+          rotateAroundY(
+
+            reflectedDirection,
+
+            rotationY
+
+          );
+
+
+        vec2 reflectedUV =
+          directionToUV(
+            reflectedDirection
+          );
+
+
+        vec3 reflectedGalaxy =
+          texture2D(
+
+            galaxyTexture,
+
+            reflectedUV
+
+          ).rgb;
+
+
+        reflectedGalaxy =
+          pow(
+
+            reflectedGalaxy,
+
+            vec3(
+              0.92
+            )
+
+          );
+
+
+        /* ==========================================
+           FRESNEL
+
+           Adds more environment character
+           toward grazing angles / sphere edges.
+        ========================================== */
+
+        float fresnel =
+          1.0 -
+          abs(
+
+            dot(
+
+              inwardNormal,
+
+              viewDir
+
+            )
+
+          );
+
+
+        fresnel =
+          pow(
+            fresnel,
+            2.0
+          );
+
+
+        /* ==========================================
+           DARK BASE
+
+           Prevents the sphere from looking like
+           a simple JPG pasted onto geometry.
+        ========================================== */
+
+        vec3 darkBase =
+          vec3(
+            0.003,
+            0.004,
+            0.008
+          );
+
+
+        /*
+          Darkness 0.38 means:
+          retain a substantial black base,
+          but allow galaxy detail through.
+        */
+
+        float galaxyMix =
+          galaxyStrength *
+          (
+            1.0 -
+            darkness * 0.45
+          );
+
+
+        vec3 color =
+          mix(
+
+            darkBase,
+
+            directGalaxy,
+
+            galaxyMix
+
+          );
+
+
+        /*
+          Add reflected environment layer.
+        */
+
+        color +=
+
+          reflectedGalaxy *
+
+          reflectionStrength *
+
+          (
+            0.35 +
+            fresnel * 0.65
+          );
+
+
+        /*
+          Slightly preserve stronger blue /
+          gold highlights without turning
+          everything into neon.
+        */
+
+        color *=
+          0.92;
+
+
+        gl_FragColor =
+          vec4(
+            color,
+            1.0
+          );
+
+      }
+
+    `
+
+  });
+
+}
+
+
+/* ==================================================
+   APPLY MODEL MATERIALS
+
+   Automatically detects largest mesh.
+================================================== */
+
+function applyModelMaterials(
+  model,
+  insideTexture
+) {
+
+  model.updateMatrixWorld(
+    true
+  );
+
+
+  let largestMesh =
+    null;
+
+  let largestVolume =
+    -Infinity;
+
+
+  model.traverse(
+
+    function(child) {
+
+
+      if (
+        !child.isMesh
+      ) {
+
+        return;
+
+      }
+
+
+      const meshBox =
+
+        new THREE.Box3()
+          .setFromObject(
+            child
+          );
+
+
+      const meshSize =
+
+        meshBox.getSize(
+          new THREE.Vector3()
+        );
+
+
+      const volume =
+
+        meshSize.x *
+        meshSize.y *
+        meshSize.z;
+
+
+      console.log(
+        'MESH:',
+        child.name,
+        'SIZE:',
+        meshSize.x,
+        meshSize.y,
+        meshSize.z,
+        'VOLUME:',
+        volume
+      );
+
+
+      if (
+        volume >
+        largestVolume
+      ) {
+
+        largestVolume =
+          volume;
+
+        largestMesh =
+          child;
+
+      }
+
+    }
+
+  );
+
+
+  if (
+    largestMesh
+  ) {
+
+    console.log(
+      'ENCLOSING SPHERE DETECTED:',
+      largestMesh.name
+    );
+
+  }
+
+
+  model.traverse(
+
+    function(child) {
+
+
+      if (
+        !child.isMesh
+      ) {
+
+        return;
+
+      }
+
+
+      /* ==================================================
+         LARGE ENCLOSING SPHERE
+
+         Replace the original PBR material
+         with our inside-facing hybrid material.
+      ================================================== */
+
+      if (
+        child === largestMesh
+      ) {
+
+
+        const insideMaterial =
+          createInsideGalaxyMaterial(
+            insideTexture
+          );
+
+
+        /*
+          Replace all materials on this mesh.
+
+          This avoids changing shared GLTF
+          materials used by smaller meshes.
+        */
+
+        if (
+          Array.isArray(
+            child.material
+          )
+        ) {
+
+          child.material =
+            child.material.map(
+              () =>
+                insideMaterial.clone()
+            );
+
+        }
+
+        else {
+
+          child.material =
+            insideMaterial;
+
+        }
+
+
+        console.log(
+          'Applied INSIDE GALAXY material:',
+          child.name
+        );
+
+
+        return;
+
+      }
+
+
+      /* ==================================================
+         ALL OTHER OBJECTS
+
+         Keep current PBR settings.
+      ================================================== */
+
+      const materials =
+
+        Array.isArray(
+          child.material
+        )
+
+        ? child.material
+
+        : [child.material];
+
+
+      materials.forEach(
+
+        function(material) {
+
+
+          material.side =
+            THREE.DoubleSide;
+
+
+          if (
+            'metalness'
+            in material
+          ) {
+
+            material.metalness =
+              0.67;
+
+          }
+
+
+          if (
+            'roughness'
+            in material
+          ) {
+
+            material.roughness =
+              0.10;
+
+          }
+
+
+          if (
+            'envMapIntensity'
+            in material
+          ) {
+
+            material.envMapIntensity =
+              0.30;
+
+          }
+
+
+          if (
+            'transmission'
+            in material
+          ) {
+
+            material.transmission =
+              0;
+
+          }
+
+
+          if (
+            material.isMeshPhysicalMaterial
+          ) {
+
+            material.clearcoat =
+              0.80;
+
+
+            material.clearcoatRoughness =
+              0.08;
+
+
+            if (
+              'specularIntensity'
+              in material
+            ) {
+
+              material.specularIntensity =
+                1.0;
+
+            }
+
+
+            material.transmission =
+              0;
+
+          }
+
+
+          if (
+            'emissive'
+            in material
+          ) {
+
+            material.emissive.set(
+              0x000000
+            );
+
+
+            material.emissiveIntensity =
+              0;
+
+          }
+
+
+          material.needsUpdate =
+            true;
+
+        }
+
+      );
+
+    }
+
+  );
+
+}
+
+
+/* ==================================================
+   GALAXY BACKGROUND
+================================================== */
 
 textureLoader.load(
 
@@ -492,9 +1308,25 @@ textureLoader.load(
   function(texture) {
 
 
-    texture.colorSpace =
+    galaxyTexture =
+      texture;
+
+
+    galaxyTexture.colorSpace =
       THREE.SRGBColorSpace;
 
+
+    galaxyTexture.wrapS =
+      THREE.RepeatWrapping;
+
+
+    galaxyTexture.wrapT =
+      THREE.ClampToEdgeWrapping;
+
+
+    /* ==================================================
+       VISIBLE OUTSIDE GALAXY
+    ================================================== */
 
     const galaxyGeometry =
       new THREE.SphereGeometry(
@@ -516,11 +1348,6 @@ textureLoader.load(
         depthTest:
           false,
 
-        /*
-          Keep visible galaxy independent
-          from renderer tone mapping.
-        */
-
         toneMapped:
           false,
 
@@ -529,12 +1356,8 @@ textureLoader.load(
 
           galaxyTexture: {
             value:
-              texture
+              galaxyTexture
           },
-
-          /*
-            YOUR CURRENT VALUE
-          */
 
           brightness: {
             value:
@@ -584,38 +1407,23 @@ textureLoader.load(
               ).rgb;
 
 
-            /*
-              Overall brightness
-            */
-
             color *=
               brightness;
 
 
-            /*
-              Lift darker Milky Way /
-              nebula details.
-
-              1.00 = original contrast
-              0.90 = brighter midtones
-              0.85 = even brighter midtones
-            */
-
-            color = pow(
-              color,
-              vec3(0.3)
-            );
+            color =
+              pow(
+                color,
+                vec3(0.90)
+              );
 
 
-            /*
-              Avoid extreme clipping.
-            */
-
-            color = clamp(
-              color,
-              0.0,
-              1.0
-            );
+            color =
+              clamp(
+                color,
+                0.0,
+                1.0
+              );
 
 
             gl_FragColor =
@@ -647,55 +1455,22 @@ textureLoader.load(
     );
 
 
-    console.log(
-      'Galaxy background loaded'
-    );
+    /* ==================================================
+       ENVIRONMENT MAP
+    ================================================== */
 
-  },
-
-
-  undefined,
-
-
-  function(error) {
-
-    console.error(
-      'Galaxy background error:',
-      error
-    );
-
-  }
-
-);
+    const pmremGenerator =
+      new THREE.PMREMGenerator(
+        renderer
+      );
 
 
-/* ==================================================
-   ENVIRONMENT MAP
-================================================== */
-
-const pmremGenerator =
-  new THREE.PMREMGenerator(
-    renderer
-  );
-
-
-pmremGenerator
-  .compileEquirectangularShader();
-
-
-textureLoader.load(
-
-  './Space_4.jpg',
-
-  function(texture) {
+    pmremGenerator
+      .compileEquirectangularShader();
 
 
     texture.mapping =
       THREE.EquirectangularReflectionMapping;
-
-
-    texture.colorSpace =
-      THREE.SRGBColorSpace;
 
 
     const envMap =
@@ -709,21 +1484,21 @@ textureLoader.load(
         .texture;
 
 
+    galaxyEnvTexture =
+      envMap;
+
+
     scene.environment =
       envMap;
 
 
     /*
-      YOUR CURRENT VALUE
+      Keep your current value.
     */
 
     scene.environmentIntensity =
       4.5;
 
-
-    /*
-      Sketchfab orientation
-    */
 
     scene.environmentRotation.y =
       THREE.MathUtils.degToRad(
@@ -731,8 +1506,25 @@ textureLoader.load(
       );
 
 
+    /*
+      If model already loaded before texture,
+      apply materials now.
+    */
+
+    if (
+      loadedModel
+    ) {
+
+      applyModelMaterials(
+        loadedModel,
+        galaxyTexture
+      );
+
+    }
+
+
     console.log(
-      'Environment loaded'
+      'Galaxy + environment loaded'
     );
 
   },
@@ -744,7 +1536,7 @@ textureLoader.load(
   function(error) {
 
     console.error(
-      'Environment error:',
+      'Galaxy loading error:',
       error
     );
 
@@ -777,167 +1569,30 @@ loader.load(
       gltf.scene;
 
 
+    loadedModel =
+      model;
+
+
     scene.add(
       model
     );
 
 
-    /* ==================================================
-       MATERIAL SETTINGS
-    ================================================== */
-
-    model.traverse(
-
-      function(child) {
-
-
-        if (
-          !child.isMesh
-        ) {
-
-          return;
-
-        }
-
-
-        const materials =
-
-          Array.isArray(
-            child.material
-          )
-
-          ? child.material
-
-          : [child.material];
-
-
-        materials.forEach(
-
-          function(material) {
-
-
-            /* DOUBLE SIDED */
-
-            material.side =
-              THREE.DoubleSide;
-
-
-            /* METALNESS */
-
-            if (
-              'metalness'
-              in material
-            ) {
-
-              material.metalness =
-                0.67;
-
-            }
-
-
-            /* ROUGHNESS */
-
-            if (
-              'roughness'
-              in material
-            ) {
-
-              material.roughness =
-                0.10;
-
-            }
-
-
-            /* ENVIRONMENT REFLECTION */
-
-            if (
-              'envMapIntensity'
-              in material
-            ) {
-
-              /*
-                YOUR CURRENT VALUE
-              */
-
-              material.envMapIntensity =
-                0.30;
-
-            }
-
-
-            /* NO TRANSMISSION */
-
-            if (
-              'transmission'
-              in material
-            ) {
-
-              material.transmission =
-                0;
-
-            }
-
-
-            /* PHYSICAL MATERIAL */
-
-            if (
-              material.isMeshPhysicalMaterial
-            ) {
-
-
-              material.clearcoat =
-                0.80;
-
-
-              material.clearcoatRoughness =
-                0.08;
-
-
-              if (
-                'specularIntensity'
-                in material
-              ) {
-
-                material.specularIntensity =
-                  1.0;
-
-              }
-
-
-              material.transmission =
-                0;
-
-            }
-
-
-            /* EMISSION OFF */
-
-            if (
-              'emissive'
-              in material
-            ) {
-
-              material.emissive.set(
-                0x000000
-              );
-
-
-              material.emissiveIntensity =
-                0;
-
-            }
-
-
-            material.needsUpdate =
-              true;
-
-          }
-
-        );
-
-      }
-
-    );
+    /*
+      Apply hybrid material once
+      galaxy texture is available.
+    */
+
+    if (
+      galaxyTexture
+    ) {
+
+      applyModelMaterials(
+        model,
+        galaxyTexture
+      );
+
+    }
 
 
     /* ==================================================
@@ -1054,6 +1709,7 @@ loader.load(
 
 
       /*
+        IMPORTANT:
         KEEP ANIMATION AT 0.1×
       */
 
@@ -1260,7 +1916,8 @@ function animate() {
 
 
   /*
-    Keep galaxy centered around camera.
+    Keep external galaxy sphere
+    centered around camera.
   */
 
   if (
